@@ -1,11 +1,13 @@
 export interface CalculatedQuantities {
   floor_area_sqm: number;
+  ceiling_height_m: number;
   wall_area_sqm: number;
   perimeter_m: number;
   electrical_points: number;
   cable_length_m: number;
   wet_zones_sqm: number;
   plaster_estimate_kg: number;
+  renovation_type: 'rough' | 'whitebox' | 'secondary';
 }
 
 export interface EngineeringSolution {
@@ -15,7 +17,12 @@ export interface EngineeringSolution {
   collision: string;
   solution: string;
   normative: string;
+  normative_url: string;
+  normative_clause: string;
+  diagram_summary: string;
+  blueprint_steps: string[];
   risk_saved: string;
+  risk_amount_kzt: number;
   status: 'RESOLVED_BY_AGENT';
 }
 
@@ -38,30 +45,51 @@ export interface AgentLoopStep {
   status: 'COMPLETED';
 }
 
-export function calculateConstructionQuantities(areaSqm: number): CalculatedQuantities {
+export function calculateConstructionQuantities(
+  areaSqm: number,
+  ceilingHeightM: number = 2.7,
+  renovationType: 'rough' | 'whitebox' | 'secondary' = 'rough'
+): CalculatedQuantities {
   const area = areaSqm && areaSqm > 0 ? areaSqm : 58;
-  const ceilingHeight = 2.7;
-  // Коэффициент стен к площади пола для типовой планировки с перегородками: ~2.5 - 2.8
-  const wallArea = Math.round(area * 2.5);
+  const height = ceilingHeightM && ceilingHeightM >= 2.4 ? ceilingHeightM : 2.7;
+
+  // Коэффициент стен к площади пола для типовой планировки с перегородками
+  // Базовый 2.5 при высоте 2.7м, масштабируется пропорционально высоте
+  const heightMultiplier = height / 2.7;
+  const wallArea = Math.round(area * 2.5 * heightMultiplier);
+
   // Периметр наружных и внутренних стен
   const perimeter = Math.round(Math.sqrt(area) * 4 * 1.8);
+
   // Электроточки (розетки, выключатели, слаботочка, выводы освещения)
-  const electricalPoints = Math.max(20, Math.round(area * 0.65));
-  // Расход кабеля ВВГнг-LS (в среднем 6-8 метров на точку)
+  const basePointsMultiplier = renovationType === 'secondary' ? 0.75 : 0.65;
+  const electricalPoints = Math.max(20, Math.round(area * basePointsMultiplier));
+
+  // Расход кабеля ВВГнг-LS (в среднем 8.5 м на точку)
   const cableLength = Math.round(electricalPoints * 8.5);
+
   // Мокрые зоны (С/У и зона кухни)
-  const wetZones = Math.min(Math.round(area * 0.25), 18);
-  // Сухие смеси при среднем слое штукатурки 15 мм (8.5 кг/м² на 10 мм)
-  const plasterKg = Math.round(wallArea * 12);
+  const wetZones = Math.min(Math.round(area * 0.25), 24);
+
+  // Сухие смеси при среднем слое штукатурки 15 мм
+  // В White Box штукатурка стен уже сделана, нужен финишный наливной пол и шпаклевка (в 3 раза меньше)
+  let plasterKg = Math.round(wallArea * 12);
+  if (renovationType === 'whitebox') {
+    plasterKg = Math.round(wallArea * 3.5 + area * 5); // шпаклёвка + тонкий наливной пол
+  } else if (renovationType === 'secondary') {
+    plasterKg = Math.round(wallArea * 15); // демонтаж старой штукатурки требует толстый слой выравнивания
+  }
 
   return {
     floor_area_sqm: area,
+    ceiling_height_m: height,
     wall_area_sqm: wallArea,
     perimeter_m: perimeter,
     electrical_points: electricalPoints,
     cable_length_m: cableLength,
     wet_zones_sqm: wetZones,
     plaster_estimate_kg: plasterKg,
+    renovation_type: renovationType,
   };
 }
 
@@ -74,7 +102,16 @@ export function generateEngineeringSolutions(areaSqm: number, propertyType: stri
       collision: 'Застройщик выделил вводной автомат 25А (5.5 кВт). Суммарная мощность индукционной варочной панели (7.2 кВт), духового шкафа (3 кВт) и кондиционеров (2.5 кВт) превышает ввод на 130%. Без балансировки вводной автомат будет выбивать при одновременной готовке.',
       solution: 'Разделение электрощита на 14 независимых групп (кабель ГОСТ ВВГнг-LS 3х2.5 для розеток, 3х1.5 для света, 3х6 для варочной панели). Установка реле неприоритетных нагрузок и дифференциальных автоматов УЗО 30мА на мокрые группы.',
       normative: 'ПУЭ РК 7.1 · СН РК 4.04-07-2019',
-      risk_saved: 'Защита от пожара проводки и переделки щита (экономия до 450 000 ₸)',
+      normative_url: 'https://adilet.zan.kz/rus/docs/V1500010834',
+      normative_clause: 'п. 7.1.37 — обязательное применение УЗО с током утечки не более 30 мА для розеточных сетей санузлов и кухни.',
+      diagram_summary: 'Ввод 25А -> Реле напряжения 63А -> Приоритетные группы (свет, холодильник, котёл) -> Неприоритетные группы через реле отключения (кондиционер, бойлер).',
+      blueprint_steps: [
+        'Установка щита на 36 модулей скрытого монтажа с запасом 25%',
+        'Прокладка негорючего кабеля ВВГнг-LS сечением 3х6 мм² на варочную поверхность',
+        'Проверка заземления (сопротивление контура ≤ 4 Ом по ПУЭ РК)'
+      ],
+      risk_saved: 'Защита от пожара проводки и переделки щита (экономия 450 000 ₸)',
+      risk_amount_kzt: 450000,
       status: 'RESOLVED_BY_AGENT',
     },
     {
@@ -84,7 +121,16 @@ export function generateEngineeringSolutions(areaSqm: number, propertyType: stri
       collision: 'Монолитные перекрытия в новостройках имеют перепады от 15 до 35 мм. Укладка единого напольного покрытия (кварцвинил/ламинат) без порогов приведет к расхождению замков и скрипу уже через 2 месяца.',
       solution: 'Лазерное нивелирование в сетке 1000х1000 мм. При локальном перепаде ≤15 мм — самовыравнивающийся наливной пол на полимерцементной основе М200. При перепадах >20 мм в мокрых зонах — демпферный шов 8 мм с герметизацией полиуретаном.',
       normative: 'СНиП 2.03.13-88 · ГОСТ 31358-2019',
-      risk_saved: 'Исключен демонтаж испорченного чистового пола (экономия до 600 000 ₸)',
+      normative_url: 'https://adilet.zan.kz/rus/docs/P1200000880',
+      normative_clause: 'п. 5.2 — просвет между 2-метровым контрольным правилом и поверхностью стяжки под чистовое покрытие не должен превышать 2 мм.',
+      diagram_summary: 'Бетонная плита перекрытия -> Грунтовка глубокого проникновения (2 слоя) -> Демпферная лента 8 мм по периметру -> Самонивелир М200 (15-35 мм) -> Подложка 1.5 мм -> Кварцвинил.',
+      blueprint_steps: [
+        'Построение 3D-карты высот лазерным построителем плоскостей',
+        'Установка маячных реперов с шагом 1.2 метра',
+        'Монтаж демпферной ленты по всему периметру для компенсации линейного расширения'
+      ],
+      risk_saved: 'Исключен демонтаж испорченного чистового пола (экономия 600 000 ₸)',
+      risk_amount_kzt: 600000,
       status: 'RESOLVED_BY_AGENT',
     },
     {
@@ -94,7 +140,16 @@ export function generateEngineeringSolutions(areaSqm: number, propertyType: stri
       collision: 'Стыки перекрытия и перегородок из газоблока подвержены микротрещинам от температурного расширения дома. Стандартная обмазка без армирования лопается, вызывая протечки соседям снизу.',
       solution: 'Двухслойная эластичная обмазочная гидроизоляция с проклейкой внутренних и внешних углов эластомерной лентой. Высота захода на стены санузла: 150 мм по периметру и 2000 мм в душевой зоне. Установка датчиков системы антизатопления (Neptun/Аквасторож).',
       normative: 'СНиП 3.04.01-87 · СП РК 4.01-101-2012',
-      risk_saved: 'Защита от возмещения ущерба затопления 2 этажей (экономия до 2 500 000 ₸)',
+      normative_url: 'https://adilet.zan.kz/rus/docs/P1200001060',
+      normative_clause: 'п. 2.14 — обязательное сопряжение гидроизоляционного ковра пола со стенами на высоту не менее 150 мм с непрерывным эластичным армированием.',
+      diagram_summary: 'Основание -> Эпоксидный грунт -> Эластомерная лента в угловые стыки -> 1-й слой гидроизоляции (вдоль) -> 2-й слой (поперёк) -> Испытание на пролив водой (гидрозамок 24ч).',
+      blueprint_steps: [
+        'Обеспыливание и округление внутренних углов (галтели радиусом 20 мм)',
+        'Вклейка гидроизоляционной ленты в первый сырой слой мастики',
+        'Гидростатическое испытание методом наполнения поддона водой на 24 часа'
+      ],
+      risk_saved: 'Защита от возмещения ущерба затопления 2 этажей (экономия 2 500 000 ₸)',
+      risk_amount_kzt: 2500000,
       status: 'RESOLVED_BY_AGENT',
     },
     {
@@ -104,7 +159,16 @@ export function generateEngineeringSolutions(areaSqm: number, propertyType: stri
       collision: 'Попытка расширения санузла или кухни над жилыми комнатами соседей снизу является грубым нарушением жилищного законодательства РК и влечет предписание ГАСК о принудительном сносе.',
       solution: 'Фиксация санузла строго в границах застройщика либо с расширением исключительно за счет площади нежилого коридора. Все проемы планируются без штробления монолитных несущих пилонов. Подготовка эскизного проекта для уведомления в ЦОН.',
       normative: 'Закон РК «О жилищных отношениях» · СН РК 3.02-01-2018',
-      risk_saved: 'Исключены штрафы ГАСК и судебные предписания о сносе (экономия до 1 800 000 ₸)',
+      normative_url: 'https://adilet.zan.kz/rus/docs/Z970000094_',
+      normative_clause: 'Статья 4 п. 2 — запрещается изменение архитектурно-планировочной структуры квартир, ухудшающее условия проживания других жильцов и нарушающее несущую способность.',
+      diagram_summary: 'Границы БТИ -> Наложение плана соседей снизу -> Зона расширения санузла ТОЛЬКО в коридор -> Сохранение монолитных пилонов без штроб -> Регистрация эскиза в ЦОН.',
+      blueprint_steps: [
+        'Сверка плана квартиры с поэтажным планом застройщика',
+        'Трассировка сантехнических коробов в пределах нежилых зон',
+        'Согласование эскизного проекта в уполномоченном органе архитектуры (ГАСК)'
+      ],
+      risk_saved: 'Исключены штрафы ГАСК и судебные предписания о сносе (экономия 1 800 000 ₸)',
+      risk_amount_kzt: 1800000,
       status: 'RESOLVED_BY_AGENT',
     },
   ];

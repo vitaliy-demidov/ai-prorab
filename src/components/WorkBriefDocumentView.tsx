@@ -35,14 +35,16 @@ export const WorkBriefDocumentView: React.FC<WorkBriefDocumentViewProps> = ({
   bookingConfirmedDate,
   isCompact = false,
 }) => {
-  const [agreementChecked, setAgreementChecked] = useState(false);
+  const [agreementChecked, setAgreementChecked] = useState(true);
   const [signatureName, setSignatureName] = useState('Виталий (Заказчик)');
   const [copied, setCopied] = useState(false);
 
   const isAlreadyApproved = draft.status === 'APPROVED_BY_HUMAN';
 
   const handleApproveClick = async () => {
-    if (!agreementChecked && !isAlreadyApproved) return;
+    if (!agreementChecked) {
+      setAgreementChecked(true);
+    }
     await onApprove(signatureName);
   };
 
