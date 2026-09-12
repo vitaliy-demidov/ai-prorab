@@ -488,7 +488,17 @@ export class AgentOrchestrator {
       const timelineRegex = /(?:заехать\s+через|срок\s*(?:до)?|готовность\s+через|через)\s*(\d+)\s*(месяц\w*|мес|нед\w*|дней|дня|год\w*)/i;
       const matchedTimeline = q.match(timelineRegex);
 
-      if (hasEvidence && matchedTimeline) {
+      let normalizedTimelineMonths: number | null = null;
+      if (matchedTimeline) {
+        const num = parseInt(matchedTimeline[1], 10);
+        const unit = matchedTimeline[2].toLowerCase();
+        if (unit.startsWith('мес')) normalizedTimelineMonths = num;
+        else if (unit.startsWith('нед')) normalizedTimelineMonths = Math.max(1, Math.round(num / 4));
+        else if (unit.startsWith('год')) normalizedTimelineMonths = num * 12;
+      }
+
+      // СТРОГОЕ СРАВНЕНИЕ: число из запроса обязано совпадать со значением модели
+      if (hasEvidence && matchedTimeline && normalizedTimelineMonths === llm.target_timeline_months) {
         verifiedTimeline = {
           value: llm.target_timeline_months,
           label: 'Желаемый срок въезда',
@@ -500,19 +510,38 @@ export class AgentOrchestrator {
           field: 'target_timeline_months',
           label: 'Желаемый срок въезда',
           proposed_value: `${llm.target_timeline_months} мес.`,
-          reason: 'Срок предложен моделью, но не подтверждён формулировкой пользователя',
+          reason: normalizedTimelineMonths !== null
+            ? `Срок предложен моделью (${llm.target_timeline_months} мес.), но в запросе указано ${normalizedTimelineMonths} мес.`
+            : 'Срок предложен моделью, но не подтверждён формулировкой пользователя',
         });
       }
     }
 
-    // 5. Пожелания (special_requests): НЕ записывать как пожелания заказчика до подтверждения
-    const verifiedSpecial: string[] = [];
+    // 5. Пожелания (special_requests):
+    // Для подтверждённых пожеланий берем нормализованный результат детерминированного парсера.
+    // Свободную формулировку модели оставляем в suggestions.
+    const verifiedSpecial: string[] = [...deterministicFacts.special_requests];
     if (Array.isArray(llm.special_requests)) {
       for (const item of llm.special_requests) {
         const text = typeof item === 'string' ? item : item.request;
         const evidence = typeof item === 'object' && item.evidence_text ? item.evidence_text : text;
-        if (q.includes(evidence.toLowerCase().trim())) {
-          verifiedSpecial.push(text);
+        const evidenceTrimmed = evidence.toLowerCase().trim();
+        const hasEvidence = q.includes(evidenceTrimmed);
+
+        if (hasEvidence) {
+          const isExactOrKnown = deterministicFacts.special_requests.some(
+            (detReq) => detReq.toLowerCase() === text.toLowerCase() || detReq.toLowerCase().includes(text.toLowerCase())
+          );
+
+          if (!isExactOrKnown) {
+            // Модель семантически перефразировала («дорогой премиальный интерьер» вместо «современный ремонт»)
+            suggestions.push({
+              field: 'special_request',
+              label: 'Интерпретация AI',
+              proposed_value: text,
+              reason: `Свободная перефразировка модели («${text}») сохранена как предложение, в фактах зафиксирован нормализованный запрос пользователя`,
+            });
+          }
         } else {
           suggestions.push({
             field: 'special_request',
@@ -530,7 +559,7 @@ export class AgentOrchestrator {
         property_type: verifiedProperty,
         area_sqm: verifiedArea,
         target_timeline_months: verifiedTimeline,
-        special_requests: verifiedSpecial.length > 0 ? verifiedSpecial : deterministicFacts.special_requests,
+        special_requests: verifiedSpecial,
       },
       suggestions,
     };

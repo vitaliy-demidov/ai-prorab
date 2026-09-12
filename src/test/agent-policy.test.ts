@@ -403,4 +403,71 @@ describe('AI Прораб — Инварианты безопасности Hack
     expect(propSuggestion).toBeDefined();
     expect(propSuggestion?.proposed_value).toBe('2-комнатная квартира');
   });
+
+  // ТЕСТ 17: Несовпадение срока (в тексте 4 мес., модель вернула 6 с валидным evidence)
+  it('17. Несовпадение срока (в тексте 4 мес., модель предлагает 6) сохраняет 4 в facts, а 6 изолирует в suggestions', async () => {
+    const timelineQuery = 'Купил двухкомнатную квартиру в Астане, 58 м². Хочу заехать через 4 месяца';
+
+    const timelineMismatchExtractor = async () => ({
+      city: 'Астана',
+      city_evidence: 'в Астане',
+      property_type: '2-комнатная квартира',
+      property_type_evidence: 'двухкомнатную квартиру',
+      area_sqm: 58,
+      area_sqm_evidence: '58 м²',
+      target_timeline_months: 6, // Модель самовольно увеличила срок до 6
+      target_timeline_months_evidence: 'через 4 месяца', // Ссылка на реальный фрагмент
+    });
+
+    const response = await AgentOrchestrator.run({
+      query: timelineQuery,
+      llmExtractor: timelineMismatchExtractor,
+    });
+
+    // В facts.target_timeline_months остаётся 4 из запроса пользователя!
+    expect(response.facts.target_timeline_months.value).toBe(4);
+    expect(response.facts.target_timeline_months.source).toBe('USER');
+
+    // Предложение 6 мес. изолировано в model_suggestions с чётким обоснованием
+    const timelineSuggestion = response.model_suggestions.find((s) => s.field === 'target_timeline_months');
+    expect(timelineSuggestion).toBeDefined();
+    expect(timelineSuggestion?.proposed_value).toBe('6 мес.');
+    expect(timelineSuggestion?.reason).toContain('в запросе указано 4 мес.');
+  });
+
+  // ТЕСТ 18: Семантическая подмена в пожеланиях («дорогой премиальный интерьер» вместо «современный ремонт»)
+  it('18. Семантическая подмена в пожеланиях фиксирует в facts нормализованный запрос, а фразу модели отправляет в suggestions', async () => {
+    const wishQuery = 'Купил двухкомнатную квартиру в Астане, 58 м². Хочу современный ремонт';
+
+    const rephrasedWishExtractor = async () => ({
+      city: 'Астана',
+      city_evidence: 'в Астане',
+      property_type: '2-комнатная квартира',
+      property_type_evidence: 'двухкомнатную квартиру',
+      area_sqm: 58,
+      area_sqm_evidence: '58 м²',
+      special_requests: [
+        {
+          request: 'дорогой премиальный интерьер', // Свободная интерпретация модели
+          evidence_text: 'современный ремонт',
+        },
+      ],
+    });
+
+    const response = await AgentOrchestrator.run({
+      query: wishQuery,
+      llmExtractor: rephrasedWishExtractor,
+    });
+
+    // В facts остаётся нормализованный детерминированный факт пользователя
+    expect(response.facts.special_requests).toContain('Современный стиль ремонта');
+    expect(response.facts.special_requests).not.toContain('дорогой премиальный интерьер');
+
+    // Фантазия модели отправлена в model_suggestions
+    const styleSuggestion = response.model_suggestions.find((s) => s.field === 'special_request');
+    expect(styleSuggestion).toBeDefined();
+    expect(styleSuggestion?.proposed_value).toBe('дорогой премиальный интерьер');
+    expect(styleSuggestion?.reason).toContain('Свободная перефразировка модели');
+  });
 });
+

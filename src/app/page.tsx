@@ -8,7 +8,7 @@ import { SmartQuestions } from '@/components/SmartQuestions';
 import { MeasurementRationale } from '@/components/MeasurementRationale';
 import { ToolTimeline } from '@/components/ToolTimeline';
 import { WorkBriefModal } from '@/components/WorkBriefModal';
-import { AgentRunResponse } from '@/types/agent';
+import { AgentRunResponse, ModelSuggestion } from '@/types/agent';
 import { 
   Play, 
   Mic, 
@@ -137,6 +137,67 @@ export default function Home() {
     } finally {
       setIsApproving(false);
     }
+  };
+
+  const handleConfirmSuggestion = (suggestion: ModelSuggestion) => {
+    setAgentData((prev) => {
+      if (!prev) return prev;
+      const updatedSuggestions = prev.model_suggestions.filter((s) => s !== suggestion);
+      const updatedFacts = { ...prev.facts };
+
+      if (suggestion.field === 'special_request') {
+        const valStr = String(suggestion.proposed_value);
+        if (!updatedFacts.special_requests.includes(valStr)) {
+          updatedFacts.special_requests = [...updatedFacts.special_requests, valStr];
+        }
+      } else if (suggestion.field === 'target_timeline_months') {
+        const num = typeof suggestion.proposed_value === 'number'
+          ? suggestion.proposed_value
+          : parseInt(String(suggestion.proposed_value), 10) || null;
+        updatedFacts.target_timeline_months = {
+          value: num,
+          label: suggestion.label,
+          source: 'USER',
+        };
+      } else if (suggestion.field === 'city') {
+        updatedFacts.city = {
+          value: String(suggestion.proposed_value),
+          label: suggestion.label,
+          source: 'USER',
+        };
+      } else if (suggestion.field === 'property_type') {
+        updatedFacts.property_type = {
+          value: String(suggestion.proposed_value),
+          label: suggestion.label,
+          source: 'USER',
+        };
+      } else if (suggestion.field === 'area_sqm') {
+        const num = typeof suggestion.proposed_value === 'number'
+          ? suggestion.proposed_value
+          : parseFloat(String(suggestion.proposed_value)) || null;
+        updatedFacts.area_sqm = {
+          value: num,
+          label: suggestion.label,
+          source: 'USER',
+        };
+      }
+
+      return {
+        ...prev,
+        facts: updatedFacts,
+        model_suggestions: updatedSuggestions,
+      };
+    });
+  };
+
+  const handleDismissSuggestion = (suggestion: ModelSuggestion) => {
+    setAgentData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        model_suggestions: prev.model_suggestions.filter((s) => s !== suggestion),
+      };
+    });
   };
 
   const toggleSpeechInput = () => {
@@ -335,6 +396,8 @@ export default function Home() {
             facts={agentData.facts}
             unknowns={agentData.unknowns}
             modelSuggestions={agentData.model_suggestions}
+            onConfirmSuggestion={handleConfirmSuggestion}
+            onDismissSuggestion={handleDismissSuggestion}
           />
         )}
 

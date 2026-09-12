@@ -8,9 +8,17 @@ interface FactsMatrixProps {
   facts: VerifiedFacts;
   unknowns: UnknownFieldItem[];
   modelSuggestions?: ModelSuggestion[];
+  onConfirmSuggestion?: (suggestion: ModelSuggestion) => void;
+  onDismissSuggestion?: (suggestion: ModelSuggestion) => void;
 }
 
-export const FactsMatrix: React.FC<FactsMatrixProps> = ({ facts, unknowns, modelSuggestions = [] }) => {
+export const FactsMatrix: React.FC<FactsMatrixProps> = ({
+  facts,
+  unknowns,
+  modelSuggestions = [],
+  onConfirmSuggestion,
+  onDismissSuggestion,
+}) => {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -125,14 +133,40 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({ facts, unknowns, model
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {modelSuggestions.map((s, idx) => (
-              <div key={idx} className="p-2 rounded-lg bg-white/80 border border-amber-200/80">
-                <div className="flex items-center justify-between text-[11px] mb-0.5">
-                  <span className="text-slate-500 font-medium">{s.label}:</span>
-                  <span className="font-bold text-slate-900 font-mono">{s.proposed_value}</span>
+              <div key={idx} className="p-2.5 rounded-lg bg-white/90 border border-amber-200/80 flex flex-col justify-between space-y-2">
+                <div>
+                  <div className="flex items-center justify-between text-[11px] mb-0.5">
+                    <span className="text-slate-500 font-medium">{s.label}:</span>
+                    <span className="font-bold text-slate-900 font-mono">{s.proposed_value}</span>
+                  </div>
+                  <span className="text-[10px] text-amber-800 block leading-tight">
+                    ↳ {s.reason}
+                  </span>
                 </div>
-                <span className="text-[10px] text-amber-800 block leading-tight">
-                  ↳ {s.reason}
-                </span>
+
+                {(onConfirmSuggestion || onDismissSuggestion) && (
+                  <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-amber-100">
+                    {onDismissSuggestion && (
+                      <button
+                        type="button"
+                        onClick={() => onDismissSuggestion(s)}
+                        className="px-2 py-0.5 text-[10px] rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+                      >
+                        Отклонить
+                      </button>
+                    )}
+                    {onConfirmSuggestion && (
+                      <button
+                        type="button"
+                        onClick={() => onConfirmSuggestion(s)}
+                        className="px-2.5 py-0.5 text-[10px] font-medium rounded bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        <Check className="w-2.5 h-2.5" />
+                        Подтвердить
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -141,3 +175,4 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({ facts, unknowns, model
     </div>
   );
 };
+
