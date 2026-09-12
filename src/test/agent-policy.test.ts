@@ -661,6 +661,60 @@ describe('AI Прораб — Инварианты безопасности Hack
       })
     ).toThrow('Недопустимый срок въезда');
   });
+
+  // ТЕСТ 26: Динамический пересчёт смет и проектов по площади и типу отделки
+  it('26. Динамически рассчитывает смету и 3 уровня результативности в зависимости от площади и типа отделки', async () => {
+    // А. Черновая 58 м²
+    const resRough58 = await AgentOrchestrator.run({
+      query: 'Купил двухкомнатную квартиру в Астане, 58 м². Черновая отделка',
+    });
+    expect(resRough58.quantities.renovation_type).toBe('rough');
+    expect(resRough58.quantities.floor_area_sqm).toBe(58);
+    const optRough = resRough58.project_blueprints.find((p) => p.id === 'proj-optimal');
+    expect(optRough).toBeDefined();
+    expect(optRough!.costPerSqmKzt).toBe(97240);
+
+    // Б. White Box 82 м²
+    const resWb82 = await AgentOrchestrator.run({
+      query: 'Квартира 82 м² в Алматы, отделка предчистовая White Box. Чистовые работы за 3 месяца.',
+    });
+    expect(resWb82.quantities.renovation_type).toBe('whitebox');
+    expect(resWb82.quantities.floor_area_sqm).toBe(82);
+    const optWb = resWb82.project_blueprints.find((p) => p.id === 'proj-optimal');
+    expect(optWb).toBeDefined();
+    // В White Box ставка ниже из-за готовых стен/стяжки
+    expect(optWb!.costPerSqmKzt).toBe(73000);
+    expect(optWb!.totalCostKzt).toBe(82 * 73000);
+
+    // В. Вторичка 44 м²
+    const resSec44 = await AgentOrchestrator.run({
+      query: 'Вторичка 44 кв.м, старый дом. Нужен демонтаж перегородок, замена проводки',
+    });
+    expect(resSec44.quantities.renovation_type).toBe('secondary');
+    expect(resSec44.quantities.floor_area_sqm).toBe(44);
+    const optSec = resSec44.project_blueprints.find((p) => p.id === 'proj-optimal');
+    expect(optSec).toBeDefined();
+    // Во вторичке ставка выше из-за демонтажа и очистки
+    expect(optSec!.costPerSqmKzt).toBe(122900);
+    expect(optSec!.totalCostKzt).toBe(44 * 122900);
+  });
+
+  // ТЕСТ 27: Наличие нормативного базиса (СН РК 8.02) и 3 уровней результативности в проектах
+  it('27. Каждый сметный проект содержит метаданные результативности (минимальная, средняя, премиум) и базис СН РК 8.02', async () => {
+    const res = await AgentOrchestrator.run({ query: mainScenario });
+    expect(res.project_blueprints.length).toBe(3);
+
+    const [base, opt, prem] = res.project_blueprints;
+    expect(base.efficiencyRating).toBe('minimal');
+    expect(base.benchmarkBaseline).toContain('СН РК 8.02-05');
+
+    expect(opt.efficiencyRating).toBe('optimal');
+    expect(opt.benchmarkBaseline).toContain('420 чел.-час');
+
+    expect(prem.efficiencyRating).toBe('premium');
+    expect(prem.benchmarkBaseline).toContain('580 чел.-час');
+  });
 });
+
 
 

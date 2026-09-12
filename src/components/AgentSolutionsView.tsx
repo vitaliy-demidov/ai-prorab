@@ -1,21 +1,23 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   CalculatedQuantities, 
   EngineeringSolution, 
   WorkBreakdownStage, 
-  AgentLoopStep,
-  SkepticVerdict,
-  MarketScrapedItem,
-  ProjectBlueprint,
-  SpecializedAgentStage,
-  calculateConstructionQuantities,
-  generateSkepticVerdicts,
-  generateMarketScrapedMaterials,
-  generateProjectBlueprints,
-  generateSpecializedAgentStages
+  AgentLoopStep, 
+  SkepticVerdict, 
+  MarketScrapedItem, 
+  ProjectBlueprint, 
+  SpecializedAgentStage, 
+  calculateConstructionQuantities, 
+  generateSkepticVerdicts, 
+  generateMarketScrapedMaterials, 
+  generateProjectBlueprints, 
+  generateSpecializedAgentStages 
 } from '@/core/tools/engineering-engine';
+import { ArchitecturalFloorPlan } from '@/components/ArchitecturalFloorPlan';
+import { BenchmarkFoundationView } from '@/components/BenchmarkFoundationView';
 import { 
   Cpu, 
   Zap, 
@@ -28,7 +30,7 @@ import {
   Sparkles, 
   Box, 
   Check, 
-  FileText,
+  FileText, 
   Clock, 
   ExternalLink, 
   ChevronDown, 
@@ -41,17 +43,17 @@ import {
   Scale, 
   Flame, 
   HardHat, 
-  Lock,
-  ShoppingCart,
-  Store,
-  TrendingDown,
-  Tag,
-  Compass,
-  Building2,
-  BadgePercent,
-  CheckCheck,
-  Wrench,
-  ShieldAlert
+  Lock, 
+  ShoppingCart, 
+  Store, 
+  TrendingDown, 
+  Tag, 
+  Compass, 
+  Building2, 
+  BadgePercent, 
+  CheckCheck, 
+  Wrench, 
+  ShieldAlert 
 } from 'lucide-react';
 
 interface AgentSolutionsViewProps {
@@ -93,10 +95,26 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
   const [showSkeptics, setShowSkeptics] = useState<boolean>(true);
   const [showCalculator, setShowCalculator] = useState<boolean>(false);
   
+  // Hero Tab Switcher: 'overview' | 'blueprint' | 'benchmark'
+  const [heroTab, setHeroTab] = useState<'overview' | 'blueprint' | 'benchmark'>('blueprint');
+
   // Interactive Live Calculator state
   const [interactiveArea, setInteractiveArea] = useState<number>(quantities?.floor_area_sqm || 58);
   const [interactiveHeight, setInteractiveHeight] = useState<number>(2.7);
   const [interactiveType, setInteractiveType] = useState<'rough' | 'whitebox' | 'secondary'>('rough');
+
+  // Sync state dynamically when props update from orchestrator (e.g. preset selection or new text query)
+  useEffect(() => {
+    if (quantities?.floor_area_sqm) {
+      setInteractiveArea(quantities.floor_area_sqm);
+    }
+    if (quantities?.ceiling_height_m) {
+      setInteractiveHeight(quantities.ceiling_height_m);
+    }
+    if (quantities?.renovation_type) {
+      setInteractiveType(quantities.renovation_type);
+    }
+  }, [quantities?.floor_area_sqm, quantities?.ceiling_height_m, quantities?.renovation_type]);
 
   // Expanded schematics per solution
   const [expandedDiagrams, setExpandedDiagrams] = useState<Record<string, boolean>>({
@@ -118,15 +136,15 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
     'skep-legal-3': true,
   });
 
-  // Re-calculate quantities dynamically based on interactiveArea
+  // Re-calculate quantities dynamically based on interactiveArea and interactiveType
   const dynamicQuantities = useMemo(() => {
     return calculateConstructionQuantities(interactiveArea, interactiveHeight, interactiveType);
   }, [interactiveArea, interactiveHeight, interactiveType]);
 
-  // Project Blueprints (dynamically recalculated on area change)
+  // Project Blueprints (dynamically recalculated on area AND renovationType change)
   const dynamicProjects = useMemo(() => {
-    return generateProjectBlueprints(interactiveArea);
-  }, [interactiveArea]);
+    return generateProjectBlueprints(interactiveArea, interactiveType);
+  }, [interactiveArea, interactiveType]);
 
   const activeProject = useMemo(() => {
     return dynamicProjects.find((p) => p.id === selectedProjectId) || dynamicProjects[1];
@@ -289,128 +307,226 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
               );
             })}
           </div>
-        </div>
-
-        {/* Selected Project Full Breakdown Card */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/[0.1] space-y-5">
-          {/* Key Numbers Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
-              <span className="text-[10px] font-mono uppercase text-slate-400 block">
-                Итого бюджет под ключ:
-              </span>
-              <span className="text-lg sm:text-xl font-black font-mono text-amber-300 block">
-                {activeProject.totalCostKzt.toLocaleString('ru-RU')} ₸
-              </span>
-              <span className="text-[10px] text-slate-400 block">
-                Фиксация цены в договоре
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
-              <span className="text-[10px] font-mono uppercase text-slate-400 block">
-                Материалы из магазинов:
-              </span>
-              <span className="text-lg sm:text-xl font-black font-mono text-sky-400 block">
-                {activeProject.materialsCostKzt.toLocaleString('ru-RU')} ₸
-              </span>
-              <span className="text-[10px] text-sky-300/80 block">
-                Чеки 12 Месяцев & Kaspi
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
-              <span className="text-[10px] font-mono uppercase text-slate-400 block">
-                Оплата работ мастеров:
-              </span>
-              <span className="text-lg sm:text-xl font-black font-mono text-emerald-400 block">
-                {activeProject.laborCostKzt.toLocaleString('ru-RU')} ₸
-              </span>
-              <span className="text-[10px] text-emerald-300/80 block">
-                Поэтапно за 4 акта АОСР
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-rose-950/20 border border-rose-500/30 space-y-1">
-              <span className="text-[10px] font-mono uppercase text-rose-300 block">
-                Сэкономлено от обмана:
-              </span>
-              <span className="text-lg sm:text-xl font-black font-mono text-rose-400 block">
-                +{totalSkepticsSavedKzt.toLocaleString('ru-RU')} ₸
-              </span>
-              <span className="text-[10px] text-rose-300/80 block">
-                Щит 3 Агентов-Скептиков
-              </span>
-            </div>
-          </div>
-
-          {/* Project Details Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
-            {/* Left: Spatial Layout & Architecture */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2.5">
-              <span className="text-[11px] font-mono text-sky-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Compass className="w-3.5 h-3.5 text-sky-400" />
-                Планировка, экспликация и зонирование:
-              </span>
-              <p className="text-slate-200 leading-relaxed font-sans">
-                {activeProject.roomsLayout}
-              </p>
-              <p className="text-slate-400 text-[11px] leading-relaxed">
-                {activeProject.architecturalSummary}
-              </p>
-              <div className="pt-2 border-t border-white/[0.05] text-[11px] text-slate-300">
-                <strong className="text-white font-mono">Для кого:</strong> {activeProject.suitableFor}
-              </div>
-            </div>
-
-            {/* Right: Key Engineering Features */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2.5">
-              <span className="text-[11px] font-mono text-emerald-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                Инженерный пакет безопасности:
-              </span>
-              <ul className="space-y-1.5 text-slate-200">
-                {activeProject.keyFeatures.map((feat, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span>{feat}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* Action CTAs */}
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          {/* Hero Sub-Views Switcher: Overview / Blueprint / Benchmark */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/60 border border-white/[0.08] font-mono text-xs">
               <button
                 type="button"
-                onClick={() => scrollToSection('market-materials-section')}
-                className="btn-press flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 text-xs font-semibold cursor-pointer"
+                onClick={() => setHeroTab('blueprint')}
+                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all ${
+                  heroTab === 'blueprint'
+                    ? 'bg-gradient-to-r from-sky-400 to-sky-500 text-obsidian-950 font-bold shadow-md shadow-sky-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <ShoppingCart className="w-4 h-4 text-sky-400" />
-                <span>Смотреть смету со ссылками на магазины ↓</span>
+                <Compass className="w-3.5 h-3.5" />
+                <span>📐 Архитектурный 2D-проект</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => scrollToSection('five-agents-section')}
-                className="btn-press flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/[0.08] text-xs font-medium cursor-pointer"
+                onClick={() => setHeroTab('overview')}
+                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all ${
+                  heroTab === 'overview'
+                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-obsidian-950 font-bold shadow-md shadow-amber-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
-                <span>Этапы 5 агентов</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>📊 Смета проекта</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setHeroTab('benchmark')}
+                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all ${
+                  heroTab === 'benchmark'
+                    ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 text-obsidian-950 font-bold shadow-md shadow-emerald-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Scale className="w-3.5 h-3.5" />
+                <span>⚖️ От чего отталкивается расчёт</span>
               </button>
             </div>
 
             <span className="text-[11px] font-mono text-slate-400">
-              Гарантия по договору: <strong>{activeProject.warrantyMonths} месяцев</strong> · Официальный акт приемки
+              Выбран проект: <strong className="text-amber-300">{activeProject.name}</strong> · {interactiveArea} м² ({interactiveType === 'rough' ? 'Черновая' : interactiveType === 'whitebox' ? 'White Box' : 'Вторичка'})
             </span>
           </div>
         </div>
+
+        {/* Dynamic Hero Sub-View Content */}
+        {heroTab === 'blueprint' && (
+          <ArchitecturalFloorPlan
+            areaSqm={interactiveArea}
+            renovationType={interactiveType}
+            city="Астана"
+          />
+        )}
+
+        {heroTab === 'benchmark' && (
+          <BenchmarkFoundationView
+            areaSqm={interactiveArea}
+            renovationType={interactiveType}
+            selectedTierId={selectedProjectId === 'proj-base' ? 'minimal' : selectedProjectId === 'proj-premium' ? 'premium' : 'optimal'}
+            onSelectTier={(tierId) => {
+              setSelectedProjectId(tierId === 'minimal' ? 'proj-base' : tierId === 'premium' ? 'proj-premium' : 'proj-optimal');
+            }}
+          />
+        )}
+
+        {heroTab === 'overview' && (
+          /* Selected Project Full Breakdown Card */
+          <div className="p-4 sm:p-5 rounded-2xl bg-black/60 border border-white/[0.1] space-y-5">
+            {/* Key Numbers Row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
+                <span className="text-[10px] font-mono uppercase text-slate-400 block">
+                  Итого бюджет под ключ:
+                </span>
+                <span className="text-lg sm:text-xl font-black font-mono text-amber-300 block">
+                  {activeProject.totalCostKzt.toLocaleString('ru-RU')} ₸
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  Фиксация цены в договоре
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
+                <span className="text-[10px] font-mono uppercase text-slate-400 block">
+                  Материалы из магазинов:
+                </span>
+                <span className="text-lg sm:text-xl font-black font-mono text-sky-400 block">
+                  {activeProject.materialsCostKzt.toLocaleString('ru-RU')} ₸
+                </span>
+                <span className="text-[10px] text-sky-300/80 block">
+                  Чеки 12 Месяцев & Kaspi
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
+                <span className="text-[10px] font-mono uppercase text-slate-400 block">
+                  Оплата работ мастеров:
+                </span>
+                <span className="text-lg sm:text-xl font-black font-mono text-emerald-400 block">
+                  {activeProject.laborCostKzt.toLocaleString('ru-RU')} ₸
+                </span>
+                <span className="text-[10px] text-emerald-300/80 block">
+                  Поэтапно за 4 акта АОСР
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-rose-950/20 border border-rose-500/30 space-y-1">
+                <span className="text-[10px] font-mono uppercase text-rose-300 block">
+                  Сэкономлено от обмана:
+                </span>
+                <span className="text-lg sm:text-xl font-black font-mono text-rose-400 block">
+                  +{totalSkepticsSavedKzt.toLocaleString('ru-RU')} ₸
+                </span>
+                <span className="text-[10px] text-rose-300/80 block">
+                  Щит 3 Агентов-Скептиков
+                </span>
+              </div>
+            </div>
+
+            {/* Project Details Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+              {/* Left: Spatial Layout & Architecture */}
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2.5">
+                <span className="text-[11px] font-mono text-sky-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5 text-sky-400" />
+                  Планировка, экспликация и зонирование:
+                </span>
+                <p className="text-slate-200 leading-relaxed font-sans">
+                  {activeProject.roomsLayout}
+                </p>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  {activeProject.architecturalSummary}
+                </p>
+                <div className="pt-2 border-t border-white/[0.05] text-[11px] text-slate-300">
+                  <strong className="text-white font-mono">Для кого:</strong> {activeProject.suitableFor}
+                </div>
+              </div>
+
+              {/* Right: Key Engineering Features */}
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2.5">
+                <span className="text-[11px] font-mono text-emerald-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                  Инженерный пакет безопасности:
+                </span>
+                <ul className="space-y-1.5 text-slate-200">
+                  {activeProject.keyFeatures.map((feat, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Action CTAs */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('market-materials-section')}
+                  className="btn-press flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-500/30 text-xs font-semibold cursor-pointer"
+                >
+                  <ShoppingCart className="w-4 h-4 text-sky-400" />
+                  <span>Смотреть смету со ссылками на магазины ↓</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('five-agents-section')}
+                  className="btn-press flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/[0.08] text-xs font-medium cursor-pointer"
+                >
+                  <span>Этапы 5 агентов</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+              </div>
+
+              <span className="text-[11px] font-mono text-slate-400">
+                Гарантия по договору: <strong>{activeProject.warrantyMonths} месяцев</strong> · Официальный акт приемки
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* =========================================================================
-          SECTION 2: 5 SPECIALIZED AGENTS PIPELINE (ПО КАЖДОМУ ЭТАПУ ИЗУЧАЕТСЯ, СТРЕМИТСЯ И РЕШАЕТСЯ)
+          SECTION 2: DEDICATED ARCHITECTURAL 2D BLUEPRINT (ВИЗУАЛЬНЫЙ ЧЕРТЁЖ И ПЛАНИРОВКА)
+          ========================================================================= */}
+      {heroTab !== 'blueprint' && (
+        <div id="architectural-project-section" className="scroll-mt-20">
+          <ArchitecturalFloorPlan
+            areaSqm={interactiveArea}
+            renovationType={interactiveType}
+            city="Астана"
+          />
+        </div>
+      )}
+
+      {/* =========================================================================
+          SECTION 3: BENCHMARK BASELINE & 3-TIER PERFORMANCE (ОТ ЧЕГО ОТТАЛКИВАЕТСЯ РАСЧЁТ)
+          ========================================================================= */}
+      {heroTab !== 'benchmark' && (
+        <div id="benchmark-section" className="scroll-mt-20">
+          <BenchmarkFoundationView
+            areaSqm={interactiveArea}
+            renovationType={interactiveType}
+            selectedTierId={selectedProjectId === 'proj-base' ? 'minimal' : selectedProjectId === 'proj-premium' ? 'premium' : 'optimal'}
+            onSelectTier={(tierId) => {
+              setSelectedProjectId(tierId === 'minimal' ? 'proj-base' : tierId === 'premium' ? 'proj-premium' : 'proj-optimal');
+            }}
+          />
+        </div>
+      )}
+
+      {/* =========================================================================
+          SECTION 4: 5 SPECIALIZED AGENTS PIPELINE (ПО КАЖДОМУ ЭТАПУ ИЗУЧАЕТСЯ, СТРЕМИТСЯ И РЕШАЕТСЯ)
           ========================================================================= */}
       <div id="five-agents-section" className="specular-card rounded-3xl p-5 sm:p-7 space-y-5 border border-white/[0.08] bg-[#090c14] scroll-mt-20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.08] pb-4">

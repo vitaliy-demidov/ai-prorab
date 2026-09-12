@@ -103,6 +103,12 @@ export interface ProjectBlueprint {
   riskDefenseSummary: string;
   preventedRiskKzt: number;
   suitableFor: string;
+  renovationType?: 'rough' | 'whitebox' | 'secondary';
+  efficiencyRating?: 'minimal' | 'optimal' | 'premium';
+  efficiencyLabel?: string;
+  serviceLifeYears?: string;
+  benchmarkBaseline?: string;
+  spatialOptimization?: string;
 }
 
 export interface SpecializedAgentStage {
@@ -893,26 +899,59 @@ export function generateMarketScrapedMaterials(
   return allItems.filter((item) => item.packageTier === 'all' || item.packageTier === selectedTier || selectedTier === 'optimal');
 }
 
-export function generateProjectBlueprints(areaSqm: number): ProjectBlueprint[] {
+export function generateProjectBlueprints(
+  areaSqm: number,
+  renovationType: 'rough' | 'whitebox' | 'secondary' = 'rough'
+): ProjectBlueprint[] {
   const area = areaSqm && areaSqm > 0 ? areaSqm : 58;
 
+  // Динамические базовые ставки в зависимости от исходного состояния объекта:
+  // Черновая (rough): полный цикл выравнивания, штукатурка по маякам, стяжка
+  // White Box: базовые стены и пол уже готовы от застройщика (-28% материалов, -25% работ, срок меньше)
+  // Вторичка (secondary): демонтаж старых перегородок, стяжки, плитки, вывоз мусора (+15% материалов, +35% работ, дольше срок)
+  let baseMatRate = 28450;
+  let baseLabRate = 37930;
+  let optMatRate = 42070;
+  let optLabRate = 55170;
+  let premMatRate = 70690;
+  let premLabRate = 82760;
+  let timelineOffset = 0;
+
+  if (renovationType === 'whitebox') {
+    baseMatRate = 20400;
+    baseLabRate = 28500;
+    optMatRate = 31200;
+    optLabRate = 41800;
+    premMatRate = 54800;
+    premLabRate = 67200;
+    timelineOffset = -15;
+  } else if (renovationType === 'secondary') {
+    baseMatRate = 32700;
+    baseLabRate = 51200;
+    optMatRate = 48400;
+    optLabRate = 74500;
+    premMatRate = 81300;
+    premLabRate = 111700;
+    timelineOffset = 12;
+  }
+
   // Базовый Смарт
-  const baseMaterials = Math.round(area * 28450);
-  const baseLabor = Math.round(area * 37930);
+  const baseMaterials = Math.round(area * baseMatRate);
+  const baseLabor = Math.round(area * baseLabRate);
   const baseTotal = baseMaterials + baseLabor;
-  const baseTimeline = Math.round(45 + area * 0.18);
+  const baseTimeline = Math.max(30, Math.round(45 + area * 0.18 + timelineOffset));
 
   // Оптимальный ГОСТ (РЕКОМЕНДУЕМ)
-  const optMaterials = Math.round(area * 42070);
-  const optLabor = Math.round(area * 55170);
+  const optMaterials = Math.round(area * optMatRate);
+  const optLabor = Math.round(area * optLabRate);
   const optTotal = optMaterials + optLabor;
-  const optTimeline = Math.round(60 + area * 0.3);
+  const optTimeline = Math.max(40, Math.round(60 + area * 0.3 + timelineOffset));
 
   // Бизнес Премиум
-  const premMaterials = Math.round(area * 70690);
-  const premLabor = Math.round(area * 82760);
+  const premMaterials = Math.round(area * premMatRate);
+  const premLabor = Math.round(area * premLabRate);
   const premTotal = premMaterials + premLabor;
-  const premTimeline = Math.round(75 + area * 0.35);
+  const premTimeline = Math.max(50, Math.round(75 + area * 0.35 + timelineOffset));
 
   return [
     {
@@ -928,7 +967,7 @@ export function generateProjectBlueprints(areaSqm: number): ProjectBlueprint[] {
       costPerSqmKzt: Math.round(baseTotal / area),
       timelineDays: baseTimeline,
       warrantyMonths: 12,
-      roomsLayout: `Планировка ${area} м²: объединенная кухня-гостиная (~22 м²), спальня (~16 м²), совмещенный санузел (~5.5 м²), входная группа (~14.5 м²).`,
+      roomsLayout: `Планировка ${area} м²: объединенная кухня-гостиная (~${Math.round(area * 0.38)} м²), спальня (~${Math.round(area * 0.25)} м²), совмещенный санузел (~${Math.round(area * 0.09)} м²), входная группа (~${Math.round(area * 0.28)} м²).`,
       architecturalSummary: 'Сохранение перегородок застройщика без демонтажа. Оптимизированная раскладка полов без ступеней.',
       keyFeatures: [
         '8 выделенных групп розеточных сетей (кабель ГОСТ ВВГнг-LS)',
@@ -944,6 +983,12 @@ export function generateProjectBlueprints(areaSqm: number): ProjectBlueprint[] {
       riskDefenseSummary: 'Базовая защита от коротких замыканий и трещин штукатурки.',
       preventedRiskKzt: 3450000,
       suitableFor: 'Инвестиционные квартиры под долгосрочную аренду, минимальный достаточный бюджет без критического брака.',
+      renovationType,
+      efficiencyRating: 'minimal',
+      efficiencyLabel: 'Минимальная результативность (Эконом / Аренда)',
+      serviceLifeYears: '3–5 лет',
+      benchmarkBaseline: 'СН РК 8.02-05: 280 чел.-час, тариф рабочих 3 разряда (1 850 ₸/ч), розница 12 Месяцев',
+      spatialOptimization: 'Типовая геометрия без переноса стен',
     },
     {
       id: 'proj-optimal',
@@ -958,7 +1003,7 @@ export function generateProjectBlueprints(areaSqm: number): ProjectBlueprint[] {
       costPerSqmKzt: Math.round(optTotal / area),
       timelineDays: optTimeline,
       warrantyMonths: 36,
-      roomsLayout: `Экспликация ${area} м²: Мастер-спальня с гардеробным отсеком, кухня-гостиная с ТВ-зоной, эргономичный санузел с душевым трапом и прачечной нишей.`,
+      roomsLayout: `Экспликация ${area} м²: Мастер-спальня (~${Math.round(area * 0.29)} м²) с гардеробом, кухня-гостиная (~${Math.round(area * 0.44)} м²), санузел (~${Math.round(area * 0.11)} м²) с душевым трапом и прачечной нишей.`,
       architecturalSummary: 'Зонирование с учетом естественного освещения. Прокладка сетей строго в коробах и стяжке без штробления монолита (ст. 4 Закона РК).',
       keyFeatures: [
         '14 групп электрощита Schneider Electric Easy9 с реле DigiTOP 63A и УЗО 30мА',
@@ -977,6 +1022,12 @@ export function generateProjectBlueprints(areaSqm: number): ProjectBlueprint[] {
       riskDefenseSummary: 'Полная нейтрализация 3 ловушек демпинга, перегруза сети и штрафов ГАСК.',
       preventedRiskKzt: 5250000,
       suitableFor: 'Комфортная семейная жизнь в современных ЖК Астаны и Алматы с гарантией 3 года.',
+      renovationType,
+      efficiencyRating: 'optimal',
+      efficiencyLabel: 'Средняя результативность (Оптимальный ГОСТ · Рекомендовано)',
+      serviceLifeYears: '10–15 лет',
+      benchmarkBaseline: 'СН РК 8.02-05: 420 чел.-час, тариф квалифицированных мастеров 4-5 разряда (2 450 ₸/ч), чеки 12 Месяцев и Kaspi',
+      spatialOptimization: 'AI-Архитектурная оптимизация (+14% полезной площади, open-space, мокрые зоны строго по ст. 4 Закона РК)',
     },
     {
       id: 'proj-premium',
@@ -1008,6 +1059,12 @@ export function generateProjectBlueprints(areaSqm: number): ProjectBlueprint[] {
       riskDefenseSummary: 'Максимальный щит с 5-летней гарантией и персональным инженером технадзора.',
       preventedRiskKzt: 7800000,
       suitableFor: 'Элитные новостройки бизнес- и премиум-класса (Highvill, Sensata, BI Group Business).',
+      renovationType,
+      efficiencyRating: 'premium',
+      efficiencyLabel: 'Хорошая / Премиальная результативность (Бизнес Премиум · На века)',
+      serviceLifeYears: '20+ лет',
+      benchmarkBaseline: 'СН РК 8.02-05: 580 чел.-час, высший разряд, лазерный контроль плоскостей Q4, европейская инженерия',
+      spatialOptimization: 'Индивидуальная трансформация, мастер-блок со своим санузлом и гардеробной, теневые швы',
     },
   ];
 }

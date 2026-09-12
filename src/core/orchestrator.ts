@@ -375,13 +375,21 @@ export class AgentOrchestrator {
     const cityStr = String(facts.city.value || 'Астана');
     const propertyTypeStr = String(facts.property_type.value || 'квартира');
 
-    const quantities = calculateConstructionQuantities(areaNum);
+    // Определение типа исходного состояния объекта:
+    let renovationType: 'rough' | 'whitebox' | 'secondary' = 'rough';
+    if (/white\s*box|предчистов\w*/i.test(query)) {
+      renovationType = 'whitebox';
+    } else if (/вторичк\w*|старый\s+дом|демонтаж\w*/i.test(query)) {
+      renovationType = 'secondary';
+    }
+
+    const quantities = calculateConstructionQuantities(areaNum, 2.7, renovationType);
     const solutions = generateEngineeringSolutions(areaNum, propertyTypeStr);
     const work_breakdown = generateWorkBreakdown(areaNum);
     const agent_loop_steps = generateAgentLoopSteps(areaNum, cityStr);
     const skeptic_verdicts = generateSkepticVerdicts(areaNum, propertyTypeStr);
     const market_materials = generateMarketScrapedMaterials(areaNum, 'optimal');
-    const project_blueprints = generateProjectBlueprints(areaNum);
+    const project_blueprints = generateProjectBlueprints(areaNum, renovationType);
     const specialized_agent_stages = generateSpecializedAgentStages(areaNum, cityStr);
 
     return {
