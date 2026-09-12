@@ -8,7 +8,7 @@
 
 ### 1. Изоляция API-ключей (Zero Client Secrets)
 - Все вызовы внешних моделей или парсеров происходят **исключительно на сервере** Next.js API Routes (`/api/agent`).
-- Ни один API-токен (`OPENAI_API_KEY`, `GEMINI_API_KEY`) не попадает в браузер, `window`, `localStorage` или Git-репозиторий.
+- Ни один API-токен (`OPENAI_API_KEY`) не попадает в браузер, `window`, `localStorage` или Git-репозиторий.
 - Переменные окружения изолированы в файле `.env` (включен в `.gitignore`).
 
 ### 2. Защита от Prompt Injection (Взлома через промпт)

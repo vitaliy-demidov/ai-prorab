@@ -91,6 +91,35 @@ export interface PolicyNotice {
   user_warning: string;
 }
 
+// Схема структурированного JSON для Hybrid AI (LLM-адаптер)
+export const HybridExtractionSchema = z.object({
+  city: z.string().nullable().optional(),
+  property_type: z.string().nullable().optional(),
+  area_sqm: z.number().nullable().optional(),
+  target_timeline_months: z.number().nullable().optional(),
+  special_requests: z.array(z.string()).default([]),
+  unknown_fields: z.array(z.object({
+    id: z.string(),
+    label: z.string(),
+    explanation: z.string(),
+    priority: z.enum(['CRITICAL', 'HIGH', 'MEDIUM']).default('HIGH'),
+  })).default([]),
+  questions: z.array(z.object({
+    id: z.string(),
+    question: z.string(),
+    category: z.enum(['STATE', 'ACCESS', 'ENGINEERING', 'BUDGET']).default('STATE'),
+    why_needed: z.string(),
+    recommended_options: z.array(z.string()),
+  })).max(3).default([]),
+  // Поля перехвата галлюцинаций цены и действий
+  estimated_price: z.any().optional(),
+  final_price: z.any().optional(),
+  cost_estimate: z.any().optional(),
+  financial_advice: z.any().optional(),
+  external_action: z.any().optional(),
+});
+export type HybridExtraction = z.infer<typeof HybridExtractionSchema>;
+
 export interface AgentRunResponse {
   query: string;
   engine_mode: 'deterministic' | 'hybrid' | 'deterministic_fallback';

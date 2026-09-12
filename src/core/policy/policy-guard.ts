@@ -38,16 +38,37 @@ export class ConstructionPolicyGuard {
 
     if (typeof textOrData === 'object' && textOrData !== null) {
       const record = textOrData as Record<string, unknown>;
-      if ('final_guaranteed_price' in record && record.final_guaranteed_price !== null && record.final_guaranteed_price !== undefined) {
-        return {
-          allowed: false,
-          notice: {
-            blocked: true,
-            rule: 'PROHIBIT_PREMATURE_FINAL_PRICE',
-            message: 'Попытка записи гарантированной цены в WorkBrief до проведения инструментального обмера.',
-            user_warning: 'Поле гарантированной цены заблокировано защитным контуром.',
-          },
-        };
+      const forbiddenKeys = [
+        'final_guaranteed_price',
+        'estimated_price',
+        'final_price',
+        'cost_estimate',
+        'budget_calculation',
+        'financial_advice',
+      ];
+
+      for (const key of forbiddenKeys) {
+        if (key in record && record[key] !== null && record[key] !== undefined) {
+          return {
+            allowed: false,
+            notice: {
+              blocked: true,
+              rule: 'PROHIBIT_PREMATURE_FINAL_PRICE',
+              message: `Поле «${key}» заблокировано защитным контуром. Расчёт сметы запрещен до проведения инструментального обмера.`,
+              user_warning: 'Попытка генерации цены или сметы перехвачена: поле удалено.',
+            },
+          };
+        }
+      }
+
+      // Рекурсивный поиск запрещенных ценовых фраз в строковых полях
+      for (const [k, v] of Object.entries(record)) {
+        if (typeof v === 'string') {
+          const stringCheck = this.validatePriceSafety(v);
+          if (!stringCheck.allowed) {
+            return stringCheck;
+          }
+        }
       }
     }
 
@@ -70,7 +91,6 @@ export class ConstructionPolicyGuard {
     ];
 
     if (irreversibleActions.includes(actionName)) {
-      // Даже с подписью человека, в рамках демо-версии и ТЗ хакатона внешние действия СТРОГО LOCKED
       if (!hasHumanApproval) {
         return {
           allowed: false,
@@ -82,7 +102,6 @@ export class ConstructionPolicyGuard {
           },
         };
       } else {
-        // Подтверждение человека разблокирует ТОЛЬКО утверждение черновика, но не реальные внешние действия!
         return {
           allowed: false,
           violation: {
