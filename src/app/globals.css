@@ -3,8 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --background: #08090d;
-  --foreground: #f1f5f9;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --background: #07080b;
+  --foreground: #f3f4f6;
 }
 
 body {
@@ -13,48 +16,106 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  /* Архитектурная сетка + тактильное верхнее освещение */
   background-image: 
-    radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.04) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(245, 158, 11, 0.03) 0px, transparent 40%),
-    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
+    radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(56, 189, 248, 0.06), transparent 70%);
+  background-size: 24px 24px, 100% 100%;
   background-attachment: fixed;
 }
 
-/* Glass & Border Utilities */
-.glass-panel {
-  background: rgba(17, 20, 31, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+/* Emil Kowalski Button & Clickable Affordance */
+.btn-press {
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+              background-color 160ms ease-out,
+              border-color 160ms ease-out,
+              color 160ms ease-out,
+              box-shadow 160ms ease-out,
+              opacity 160ms ease-out;
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Премиальная обсидиановая карточка со срезанным верхним хайлайтом (Specular Border) */
+.specular-card {
+  background-color: #0c0e14;
   border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 4px 24px -2px rgba(0, 0, 0, 0.6);
 }
 
-.glass-panel-hover {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+.specular-card-interactive {
+  background-color: #0c0e14;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  transition: border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.glass-panel-hover:hover {
-  background: rgba(22, 26, 41, 0.85);
-  border-color: rgba(255, 255, 255, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  .specular-card-interactive:hover {
+    background-color: #11141d;
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 8px 30px -4px rgba(0, 0, 0, 0.7);
+  }
+}
+.specular-card-interactive:active {
+  transform: scale(0.985);
 }
 
-.glass-modal {
-  background: rgba(13, 15, 23, 0.95);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* Модальные окна: вход с scale(0.96) и плавным блюром */
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.modal-enter {
+  animation: modalEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Премиальный тонкий скроллбар */
+/* Аудио-волновой эквалайзер для голосового ввода */
+@keyframes wavePulse {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+.wave-bar-1 { animation: wavePulse 0.8s ease-in-out infinite; }
+.wave-bar-2 { animation: wavePulse 0.8s ease-in-out infinite 0.15s; }
+.wave-bar-3 { animation: wavePulse 0.8s ease-in-out infinite 0.3s; }
+.wave-bar-4 { animation: wavePulse 0.8s ease-in-out infinite 0.45s; }
+
+/* Каскадное появление элементов (Stagger) */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.stagger-in {
+  animation: staggerFadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Тонкий инженерный скроллбар */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #08090d;
+  background: #07080b;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1d2235;
+  background: #191e2b;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a314b;
+  background: #283147;
 }

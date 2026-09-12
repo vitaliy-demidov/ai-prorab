@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { WorkBriefDraft } from '@/types/agent';
-import { X, FileText, CheckCircle2, AlertTriangle, UserCheck, ShieldCheck, Lock, FileCheck } from 'lucide-react';
+import { X, FileText, CheckCircle2, AlertTriangle, UserCheck, ShieldCheck, Lock, FileCheck, Stamp } from 'lucide-react';
 
 interface WorkBriefModalProps {
   isOpen: boolean;
@@ -32,11 +32,11 @@ export const WorkBriefModal: React.FC<WorkBriefModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-obsidian-900 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-white/15 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md">
+      <div className="specular-card modal-enter rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-white/15 overflow-hidden">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-obsidian-950/80">
-          <div className="flex items-center space-x-3">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-obsidian-950/90">
+          <div className="flex items-center space-x-3.5">
             <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-400">
               <FileCheck className="w-5 h-5" />
             </div>
@@ -55,14 +55,14 @@ export const WorkBriefModal: React.FC<WorkBriefModalProps> = ({
                   {isAlreadyApproved ? 'Утверждено человеком ✓' : 'Черновик: требует подписи'}
                 </span>
               </div>
-              <h3 className="text-sm font-bold text-white mt-1">
+              <h3 className="text-sm font-bold text-white mt-1 font-sans">
                 {draft.title}
               </h3>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            className="btn-press p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -197,14 +197,14 @@ export const WorkBriefModal: React.FC<WorkBriefModalProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={onClose}
-                    className="px-3.5 py-1.5 text-xs text-slate-400 hover:text-white border border-white/10 hover:bg-white/5 rounded-lg transition-all cursor-pointer font-mono"
+                    className="btn-press px-3.5 py-1.5 text-xs text-slate-400 hover:text-white border border-white/10 hover:bg-white/5 rounded-lg cursor-pointer font-mono"
                   >
                     Закрыть
                   </button>
                   <button
                     onClick={handleApproveClick}
                     disabled={!agreementChecked || isApproving}
-                    className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-glow-emerald ${
+                    className={`btn-press flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold shadow-glow-emerald ${
                       agreementChecked && !isApproving
                         ? 'bg-emerald-500 hover:bg-emerald-400 text-obsidian-950 cursor-pointer'
                         : 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
@@ -224,7 +224,7 @@ export const WorkBriefModal: React.FC<WorkBriefModalProps> = ({
               </span>
               <button
                 onClick={onClose}
-                className="px-4 py-1.5 text-xs bg-white/10 text-white hover:bg-white/20 border border-white/15 rounded-lg cursor-pointer"
+                className="btn-press px-4 py-1.5 text-xs bg-white/10 text-white hover:bg-white/20 border border-white/15 rounded-lg cursor-pointer font-mono"
               >
                 Закрыть
               </button>
@@ -235,4 +235,5 @@ export const WorkBriefModal: React.FC<WorkBriefModalProps> = ({
     </div>
   );
 };
+
 

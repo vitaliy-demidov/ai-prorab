@@ -17,14 +17,14 @@ export const ToolTimeline: React.FC<ToolTimelineProps> = ({ traces }) => {
   };
 
   return (
-    <div className="bg-obsidian-850 border border-white/10 rounded-2xl shadow-card-dark overflow-hidden">
+    <div className="specular-card rounded-2xl overflow-hidden">
       {/* Header acting as disclosure button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-obsidian-800 transition-all cursor-pointer"
+        className="btn-press w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-white/[0.02] cursor-pointer"
       >
         <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-400">
+          <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
             <Terminal className="w-4 h-4" />
           </div>
           <div>
@@ -32,13 +32,13 @@ export const ToolTimeline: React.FC<ToolTimelineProps> = ({ traces }) => {
               Журнал выполнения инструментов (Tool Execution Trace)
             </h3>
             <p className="text-[11px] text-slate-400">
-              {traces.length} типизированных вызовов инструментов • Полный аудит принятия решений для жюри
+              {traces.length} типизированных вызовов инструментов • Прозрачный аудит каждого шага
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full">
+          <span className="text-[11px] font-mono text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-0.5 rounded-full">
             {isOpen ? 'Скрыть аудит' : 'Развернуть Trace'}
           </span>
           {isOpen ? (
@@ -65,7 +65,7 @@ export const ToolTimeline: React.FC<ToolTimelineProps> = ({ traces }) => {
                     }`}
                   ></div>
 
-                  <div className="p-3 rounded-xl border border-white/10 bg-obsidian-900/90 text-xs">
+                  <div className="p-3 rounded-xl border border-white/10 bg-obsidian-900 text-xs">
                     <div
                       onClick={() => toggleExpand(trace.step)}
                       className="flex items-center justify-between cursor-pointer"
@@ -135,4 +135,5 @@ export const ToolTimeline: React.FC<ToolTimelineProps> = ({ traces }) => {
     </div>
   );
 };
+
 

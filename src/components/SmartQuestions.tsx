@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SmartQuestion } from '@/types/agent';
-import { HelpCircle, Check, MessageSquareCode, CheckCircle2 } from 'lucide-react';
+import { HelpCircle, Check, MessageSquareCode, CheckCircle2, CornerDownRight } from 'lucide-react';
 
 interface SmartQuestionsProps {
   questions: SmartQuestion[];
@@ -16,23 +16,23 @@ export const SmartQuestions: React.FC<SmartQuestionsProps> = ({
   onAnswerQuestion,
 }) => {
   return (
-    <div className="bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark">
+    <div className="specular-card rounded-2xl p-4 sm:p-5">
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
         <div className="flex items-center space-x-2.5">
-          <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-            <MessageSquareCode className="w-3.5 h-3.5" />
+          <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+            <MessageSquareCode className="w-4 h-4" />
           </div>
           <div>
             <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-              Уточняющие вопросы агента
+              Уточняющие вопросы агентов
             </h3>
             <p className="text-[11px] text-slate-400">
-              Кураторы: Алексей & Марина • Снижение неопределенности перед составлением ТЗ
+              Кураторы: Алексей & Марина • Снижение энтропии перед выпуском спецификации
             </p>
           </div>
         </div>
         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-slate-400 border border-white/10">
-          Лимит: строго до 3 вопросов
+          Строго 3 вопроса
         </span>
       </div>
 
@@ -44,15 +44,15 @@ export const SmartQuestions: React.FC<SmartQuestionsProps> = ({
           return (
             <div
               key={q.id}
-              className={`p-3.5 rounded-xl border transition-all ${
+              className={`p-3.5 rounded-xl border transition-colors ${
                 isAnswered 
                   ? 'bg-obsidian-800/90 border-sky-500/30 shadow-glow-cyan' 
-                  : 'bg-obsidian-900/60 border-white/5 hover:border-white/10'
+                  : 'bg-obsidian-900 border-white/5 hover:border-white/10'
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-md bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[10px] font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-5 h-5 rounded-md bg-sky-500/15 text-sky-300 border border-sky-500/30 text-[10px] font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
                     0{idx + 1}
                   </span>
                   <div>
@@ -82,21 +82,25 @@ export const SmartQuestions: React.FC<SmartQuestionsProps> = ({
                     <button
                       key={optIdx}
                       onClick={() => onAnswerQuestion(q.id, opt)}
-                      className={`text-xs px-3 py-1.5 rounded-lg transition-all text-left border cursor-pointer ${
+                      className={`btn-press text-xs px-3 py-1.5 rounded-lg text-left border cursor-pointer flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-sky-500 text-obsidian-950 border-sky-400 shadow-glow-cyan font-bold'
-                          : 'bg-obsidian-950/70 hover:bg-obsidian-750 text-slate-300 hover:text-white border-white/10'
+                          : 'bg-obsidian-950/80 hover:bg-obsidian-850 text-slate-300 hover:text-white border-white/10'
                       }`}
                     >
-                      {opt}
+                      {isSelected && <Check className="w-3 h-3 shrink-0 stroke-[3]" />}
+                      <span>{opt}</span>
                     </button>
                   );
                 })}
               </div>
 
               {isAnswered && (
-                <div className="mt-2 text-[11px] pl-7 text-slate-400 font-mono">
-                  Зафиксировано: <span className="font-semibold text-sky-300">«{currentAnswer}»</span> (создана новая ревизия ТЗ)
+                <div className="mt-2 text-[11px] pl-7 text-slate-400 font-mono flex items-center gap-1.5">
+                  <CornerDownRight className="w-3 h-3 text-sky-400 shrink-0" />
+                  <span>
+                    Ответ: <strong className="text-sky-300">«{currentAnswer}»</strong> (автоматически обновлена ревизия ТЗ)
+                  </span>
                 </div>
               )}
             </div>
@@ -106,4 +110,5 @@ export const SmartQuestions: React.FC<SmartQuestionsProps> = ({
     </div>
   );
 };
+
 

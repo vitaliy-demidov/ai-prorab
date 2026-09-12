@@ -257,7 +257,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-obsidian-950 text-slate-100">
+    <div className="min-h-screen flex flex-col text-slate-100">
       <Header
         engineBadge={agentData?.engine_badge || 'Demo mode · Rules + Safety Guard'}
         engineMode={agentData?.engine_mode || 'deterministic'}
@@ -274,7 +274,7 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setApiError(null)}
-              className="text-rose-400 hover:text-rose-200 text-xs font-mono px-2 py-0.5 rounded cursor-pointer"
+              className="btn-press text-rose-400 hover:text-rose-200 text-xs font-mono px-2 py-0.5 rounded cursor-pointer"
             >
               Закрыть
             </button>
@@ -284,7 +284,7 @@ export default function Home() {
         {/* HERO SECTION: ЗАПРОС СЛЕВА | «ЭКСПРЕСС-АУДИТ» СПРАВА */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
           {/* Слева: командная консоль ввода (7 колонок) */}
-          <div className="md:col-span-7 bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col justify-between">
+          <div className="md:col-span-7 specular-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <label className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
@@ -293,14 +293,26 @@ export default function Home() {
                 </label>
                 <button
                   onClick={toggleSpeechInput}
-                  className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg transition-all border font-mono cursor-pointer ${
+                  className={`btn-press flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg border font-mono cursor-pointer ${
                     isListening
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                       : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
                   }`}
                 >
-                  {isListening ? <MicOff className="w-3.5 h-3.5 text-rose-400" /> : <Mic className="w-3.5 h-3.5 text-sky-400" />}
-                  <span>{isListening ? 'Идёт запись...' : 'Диктовать голос'}</span>
+                  {isListening ? (
+                    <div className="flex items-center gap-1 h-3.5">
+                      <span className="w-1 bg-rose-400 rounded-full wave-bar-1" />
+                      <span className="w-1 bg-rose-400 rounded-full wave-bar-2" />
+                      <span className="w-1 bg-rose-400 rounded-full wave-bar-3" />
+                      <span className="w-1 bg-rose-400 rounded-full wave-bar-4" />
+                      <span className="text-[11px] text-rose-300 ml-1">Запись...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Mic className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Диктовать голос</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -309,7 +321,7 @@ export default function Home() {
                 onChange={(e) => setQuery(e.target.value)}
                 rows={3}
                 placeholder="Введите параметры объекта или пожелания свободным языком..."
-                className="w-full text-xs p-3.5 rounded-xl border border-white/10 focus:border-sky-500/60 focus:outline-hidden font-sans text-white bg-obsidian-900/90 placeholder-slate-500 resize-none leading-relaxed transition-colors"
+                className="w-full text-xs p-3.5 rounded-xl border border-white/10 focus:border-sky-500/60 focus:outline-hidden font-sans text-white bg-obsidian-950/80 placeholder-slate-500 resize-none leading-relaxed transition-colors"
               />
 
               {/* Demo сценарии */}
@@ -320,10 +332,10 @@ export default function Home() {
                     <button
                       key={p.id}
                       onClick={() => handleSelectPreset(p.text)}
-                      className={`text-[11px] px-3 py-1.5 rounded-lg transition-all whitespace-nowrap border font-mono cursor-pointer flex items-center gap-1.5 ${
+                      className={`btn-press text-[11px] px-3 py-1.5 rounded-lg whitespace-nowrap border font-mono cursor-pointer flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-sky-500 text-obsidian-950 border-sky-400 shadow-glow-cyan font-bold'
-                          : 'bg-obsidian-900 hover:bg-obsidian-750 text-slate-300 border-white/10'
+                          : 'bg-obsidian-950/90 hover:bg-obsidian-850 text-slate-300 border-white/10'
                       }`}
                     >
                       <span className="opacity-60 text-[9px] uppercase">[{p.badge}]</span>
@@ -339,7 +351,7 @@ export default function Home() {
               <button
                 onClick={() => runAgentAnalysis(query, userAnswers)}
                 disabled={isRunning || query.length < 3}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-obsidian-950 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-glow-cyan disabled:bg-slate-800 disabled:text-slate-500 disabled:border-white/5 cursor-pointer"
+                className="btn-press flex-1 py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-obsidian-950 text-xs font-bold flex items-center justify-center gap-2 shadow-glow-cyan disabled:bg-slate-800 disabled:text-slate-500 disabled:border-white/5 cursor-pointer"
               >
                 {isRunning ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-obsidian-950" />
@@ -352,7 +364,7 @@ export default function Home() {
           </div>
 
           {/* Справа: Карточка «Экспресс-аудит объекта» (5 колонок) */}
-          <div className="md:col-span-5 bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col justify-between">
+          <div className="md:col-span-5 specular-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/5">
                 <div className="flex items-center gap-2">
@@ -368,7 +380,7 @@ export default function Home() {
 
               {agentData ? (
                 <div className="space-y-2.5 text-xs">
-                  <div className="flex items-start gap-2.5 p-2 rounded-xl bg-obsidian-900/60 border border-white/5">
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-obsidian-950/80 border border-white/5">
                     <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold text-white block">4 подтверждённых факта:</span>
@@ -378,7 +390,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2.5 p-2 rounded-xl bg-obsidian-900/60 border border-white/5">
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-obsidian-950/80 border border-white/5">
                     <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold text-white block">4 критических неизвестных:</span>
@@ -403,7 +415,7 @@ export default function Home() {
               <div className="mt-3 pt-3 border-t border-white/5">
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  className={`btn-press w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer ${
                     isHumanApproved
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-glow-emerald hover:bg-emerald-500/30'
                       : 'bg-white/10 hover:bg-white/15 text-white border border-white/15'
@@ -468,7 +480,7 @@ export default function Home() {
 
         {/* СТРОГО ПО ПОРЯДКУ ИЗ ТЗ: СЛЕДУЮЩИЙ ШАГ И WORKBRIEF CTA */}
         {agentData && (
-          <div className="bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="specular-card rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
                 <Compass className="w-5 h-5" />
@@ -488,7 +500,7 @@ export default function Home() {
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className={`px-5 py-2.5 rounded-xl text-xs font-bold text-obsidian-950 transition-all flex items-center gap-2 shadow-glow-emerald shrink-0 cursor-pointer ${
+              className={`btn-press px-5 py-2.5 rounded-xl text-xs font-bold text-obsidian-950 flex items-center gap-2 shadow-glow-emerald shrink-0 cursor-pointer ${
                 isHumanApproved 
                   ? 'bg-emerald-400 hover:bg-emerald-300' 
                   : 'bg-emerald-500 hover:bg-emerald-400'
@@ -525,3 +537,4 @@ export default function Home() {
     </div>
   );
 }
+

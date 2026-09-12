@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { VerifiedFacts, UnknownFieldItem, ModelSuggestion } from '@/types/agent';
-import { Check, HelpCircle, AlertCircle, Sparkles, ScanSearch, Ruler, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Check, HelpCircle, AlertCircle, Sparkles, ScanSearch, Ruler, CheckCircle2, ShieldAlert, Shield } from 'lucide-react';
 
 interface FactsMatrixProps {
   facts: VerifiedFacts;
@@ -23,19 +23,19 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
     <div className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* 1. ПОДТВЕРЖДЁННЫЕ ФАКТЫ (ТОЛЬКО source: USER) — 6 колонок */}
-        <div className="lg:col-span-6 bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col justify-between">
+        <div className="lg:col-span-6 specular-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
               <div className="flex items-center space-x-2.5">
-                <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-                  <ScanSearch className="w-3.5 h-3.5" />
+                <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                  <ScanSearch className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
                     Подтверждённые факты
                   </h3>
                   <span className="text-[10px] text-slate-400 font-mono">
-                    Куратор: Алексей (Аудит данных)
+                    Куратор: Алексей (AGT-01 · ALPHA)
                   </span>
                 </div>
               </div>
@@ -44,48 +44,56 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
               {/* Город */}
-              <div className="p-2.5 rounded-xl bg-obsidian-900/80 border border-white/5 flex flex-col justify-between">
+              <div className="p-3 rounded-xl bg-obsidian-900 border border-white/5 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-400 font-mono uppercase">{facts.city.label}</span>
                 <span className="font-bold text-white text-sm mt-1">
                   {facts.city.source === 'USER' && facts.city.value ? facts.city.value : 'Не указан'}
                 </span>
-                <span className="text-[9px] text-emerald-400 font-mono mt-1">✓ Из текста сообщения</span>
+                <span className="text-[9px] text-emerald-400 font-mono mt-1.5 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Из текста запроса
+                </span>
               </div>
 
               {/* Тип объекта */}
-              <div className="p-2.5 rounded-xl bg-obsidian-900/80 border border-white/5 flex flex-col justify-between">
+              <div className="p-3 rounded-xl bg-obsidian-900 border border-white/5 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-400 font-mono uppercase">{facts.property_type.label}</span>
                 <span className="font-bold text-white text-sm mt-1">
                   {facts.property_type.source === 'USER' && facts.property_type.value ? facts.property_type.value : 'Не указан'}
                 </span>
-                <span className="text-[9px] text-emerald-400 font-mono mt-1">✓ Из текста сообщения</span>
+                <span className="text-[9px] text-emerald-400 font-mono mt-1.5 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Из текста запроса
+                </span>
               </div>
 
               {/* Площадь */}
-              <div className="p-2.5 rounded-xl bg-obsidian-900/80 border border-white/5 flex flex-col justify-between">
+              <div className="p-3 rounded-xl bg-obsidian-900 border border-white/5 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-400 font-mono uppercase">{facts.area_sqm.label}</span>
                 <span className="font-bold text-sky-400 text-sm font-mono mt-1">
                   {facts.area_sqm.source === 'USER' && facts.area_sqm.value ? `${facts.area_sqm.value} м²` : 'Не указана'}
                 </span>
-                <span className="text-[9px] text-slate-400 font-mono mt-1">Точный обмер уточнит факт</span>
+                <span className="text-[9px] text-slate-400 font-mono mt-1.5">
+                  Лазерный обмер уточнит геометрию
+                </span>
               </div>
 
               {/* Срок въезда */}
-              <div className="p-2.5 rounded-xl bg-obsidian-900/80 border border-white/5 flex flex-col justify-between">
+              <div className="p-3 rounded-xl bg-obsidian-900 border border-white/5 flex flex-col justify-between">
                 <span className="text-[10px] text-slate-400 font-mono uppercase">{facts.target_timeline_months.label}</span>
                 <span className="font-bold text-white text-sm mt-1">
                   {facts.target_timeline_months.source === 'USER' && facts.target_timeline_months.value ? `${facts.target_timeline_months.value} месяца` : 'Не указан'}
                 </span>
-                <span className="text-[9px] text-slate-400 font-mono mt-1">Желаемый дедлайн въезда</span>
+                <span className="text-[9px] text-slate-400 font-mono mt-1.5">
+                  Желаемый дедлайн въезда
+                </span>
               </div>
             </div>
 
             {facts.special_requests && facts.special_requests.length > 0 && (
-              <div className="mt-3 p-2.5 rounded-xl bg-obsidian-900/60 border border-white/5">
-                <span className="text-[10px] font-mono text-slate-400 block mb-1.5 uppercase">
-                  Пожелания заказчика (зафиксировано):
+              <div className="mt-3 p-3 rounded-xl bg-obsidian-900 border border-white/5">
+                <span className="text-[10px] font-mono text-slate-400 block mb-2 uppercase">
+                  Пожелания заказчика (зафиксировано в ТЗ):
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {facts.special_requests.map((req, i) => (
@@ -100,19 +108,19 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
         </div>
 
         {/* 2. КРИТИЧЕСКИЕ НЕИЗВЕСТНЫЕ (ТРЕБУЮТ ВЫЕЗДА) — 6 колонок */}
-        <div className="lg:col-span-6 bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col justify-between">
+        <div className="lg:col-span-6 specular-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
               <div className="flex items-center space-x-2.5">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <Ruler className="w-3.5 h-3.5" />
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Ruler className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
                     Критические неизвестные
                   </h3>
                   <span className="text-[10px] text-slate-400 font-mono">
-                    Куратор: Виктор (Обмерная дефектоскопия)
+                    Куратор: Виктор (AGT-02 · RADAR)
                   </span>
                 </div>
               </div>
@@ -125,7 +133,7 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
               {unknowns.map((item) => (
                 <div
                   key={item.id}
-                  className="p-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs transition-all hover:bg-amber-500/10"
+                  className="p-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs hover:bg-amber-500/10 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-semibold text-white flex items-center gap-1.5">
@@ -152,7 +160,7 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
           <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-amber-500/20">
             <div className="flex items-center gap-2 text-amber-300 font-bold">
               <Sparkles className="w-4 h-4 text-amber-400" />
-              <span className="font-mono uppercase tracking-wide">Предложения AI (Изолированы в карантине)</span>
+              <span className="font-mono uppercase tracking-wide">Карантин гипотез AI (Изоляция от WorkBrief)</span>
             </div>
             <span className="text-[10px] font-mono text-amber-200 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">
               Защищено от автоприменения
@@ -161,11 +169,11 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {modelSuggestions.map((s, idx) => (
-              <div key={idx} className="p-3 rounded-xl bg-obsidian-900 border border-amber-500/20 flex flex-col justify-between space-y-2.5">
+              <div key={idx} className="p-3.5 rounded-xl bg-obsidian-900 border border-amber-500/20 flex flex-col justify-between space-y-3">
                 <div>
-                  <div className="flex items-center justify-between text-xs mb-1">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
                     <span className="text-slate-400 font-mono text-[11px] uppercase">{s.label}:</span>
-                    <span className="font-bold text-white font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                    <span className="font-bold text-white font-mono bg-white/5 px-2.5 py-0.5 rounded border border-white/10">
                       {s.proposed_value}
                     </span>
                   </div>
@@ -180,7 +188,7 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
                       <button
                         type="button"
                         onClick={() => onDismissSuggestion(s)}
-                        className="px-2.5 py-1 text-[11px] rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all cursor-pointer font-mono"
+                        className="btn-press px-2.5 py-1 text-[11px] rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 cursor-pointer font-mono"
                       >
                         Отклонить
                       </button>
@@ -189,9 +197,9 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
                       <button
                         type="button"
                         onClick={() => onConfirmSuggestion(s)}
-                        className="px-3 py-1 text-[11px] font-bold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-obsidian-950 shadow-glow-emerald transition-all flex items-center gap-1 cursor-pointer"
+                        className="btn-press px-3 py-1.5 text-[11px] font-bold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-obsidian-950 shadow-glow-emerald flex items-center gap-1.5 cursor-pointer"
                       >
-                        <Check className="w-3 h-3" />
+                        <Check className="w-3.5 h-3.5" />
                         Подтвердить
                       </button>
                     )}
@@ -205,5 +213,6 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
     </div>
   );
 };
+
 
 

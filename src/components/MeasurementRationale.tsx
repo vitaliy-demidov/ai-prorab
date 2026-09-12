@@ -11,10 +11,10 @@ const ICONS = [Ruler, Zap, Layers, HeartHandshake];
 
 export const MeasurementRationale: React.FC<MeasurementRationaleProps> = ({ reasons }) => {
   return (
-    <div className="bg-obsidian-850 text-white rounded-2xl p-4 sm:p-5 shadow-card-dark border border-white/10">
+    <div className="specular-card text-white rounded-2xl p-4 sm:p-5">
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
         <div className="flex items-center space-x-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
@@ -39,7 +39,7 @@ export const MeasurementRationale: React.FC<MeasurementRationaleProps> = ({ reas
           return (
             <div
               key={idx}
-              className="p-3 rounded-xl bg-obsidian-900/80 border border-white/5 text-xs flex items-start gap-3 hover:border-white/15 transition-all"
+              className="p-3 rounded-xl bg-obsidian-900 border border-white/5 text-xs flex items-start gap-3 hover:border-white/15 transition-colors"
             >
               <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 shrink-0 mt-0.5">
                 <IconComponent className="w-3.5 h-3.5" />
@@ -62,4 +62,5 @@ export const MeasurementRationale: React.FC<MeasurementRationaleProps> = ({ reas
     </div>
   );
 };
+
 
