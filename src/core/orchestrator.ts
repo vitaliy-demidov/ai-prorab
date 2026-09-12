@@ -18,6 +18,12 @@ import { executeReadinessCheck } from './tools/readiness-check';
 import { executeProposeNextAction } from './tools/propose-action';
 import { executeCreateWorkBriefDraft, registerPendingSuggestions } from './tools/create-draft';
 import { ConstructionPolicyGuard } from './policy/policy-guard';
+import { 
+  calculateConstructionQuantities, 
+  generateEngineeringSolutions, 
+  generateWorkBreakdown, 
+  generateAgentLoopSteps 
+} from './tools/engineering-engine';
 
 export interface RunAgentOptions {
   query: string;
@@ -361,6 +367,15 @@ export class AgentOrchestrator {
       });
     }
 
+    const areaNum = typeof facts.area_sqm.value === 'number' ? facts.area_sqm.value : 58;
+    const cityStr = String(facts.city.value || 'Астана');
+    const propertyTypeStr = String(facts.property_type.value || 'квартира');
+
+    const quantities = calculateConstructionQuantities(areaNum);
+    const solutions = generateEngineeringSolutions(areaNum, propertyTypeStr);
+    const work_breakdown = generateWorkBreakdown(areaNum);
+    const agent_loop_steps = generateAgentLoopSteps(areaNum, cityStr);
+
     return {
       query,
       engine_mode: engineMode,
@@ -376,6 +391,10 @@ export class AgentOrchestrator {
       safety_notice: riskResult.safety_summary,
       tool_traces: traces,
       workbrief_draft,
+      quantities,
+      solutions,
+      work_breakdown,
+      agent_loop_steps,
     };
   }
 

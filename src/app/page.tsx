@@ -11,6 +11,7 @@ import { ToolTimeline } from '@/components/ToolTimeline';
 import { WorkBriefModal } from '@/components/WorkBriefModal';
 import { WorkBriefDocumentView } from '@/components/WorkBriefDocumentView';
 import { MeasurementBookingModal } from '@/components/MeasurementBookingModal';
+import { AgentSolutionsView } from '@/components/AgentSolutionsView';
 import { AgentRunResponse, ModelSuggestion } from '@/types/agent';
 import { 
   Play, 
@@ -25,7 +26,8 @@ import {
   FileSignature,
   Search,
   CheckCircle2,
-  Users
+  Users,
+  Brain
 } from 'lucide-react';
 
 const DEFAULT_SCENARIO = 'Купил двухкомнатную квартиру в Астане, 58 м². Хочу современный ремонт, заехать через 4 месяца, бюджет пока не понимаю';
@@ -51,7 +53,7 @@ const PRESETS = [
   },
 ];
 
-type ActiveTab = 'brief' | 'audit' | 'questions' | 'team';
+type ActiveTab = 'solutions' | 'brief' | 'audit' | 'questions' | 'team';
 
 export default function Home() {
   const [query, setQuery] = useState(DEFAULT_SCENARIO);
@@ -65,7 +67,7 @@ export default function Home() {
   const [isHumanApproved, setIsHumanApproved] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('brief');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('solutions');
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return `session-${crypto.randomUUID()}`;
@@ -308,7 +310,7 @@ export default function Home() {
             Интеллектуальный контроль вашего объекта
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed font-normal">
-            Изоляция подтверждённых фактов от шума, защита от скрытых строительных рисков и формирование юридически чистого WorkBrief до выезда инженера.
+            Изоляция подтверждённых фактов от шума, расчёт физических объёмов, выявление строительных коллизий и формирование юридически чистого WorkBrief до выезда инженера.
           </p>
         </section>
 
@@ -368,7 +370,7 @@ export default function Home() {
               ) : (
                 <Play className="w-3.5 h-3.5 fill-obsidian-950" />
               )}
-              <span>{isRunning ? 'Анализ объекта...' : 'Сформировать ТЗ'}</span>
+              <span>{isRunning ? 'Анализ объекта...' : 'Сформировать решения'}</span>
             </button>
           </div>
         </div>
@@ -390,7 +392,22 @@ export default function Home() {
 
         {/* APPLE SEGMENTED CONTROL TABS */}
         <div className="flex items-center justify-center no-print">
-          <div className="p-1 rounded-xl bg-[#0e111a] border border-white/[0.08] inline-flex gap-1">
+          <div className="p-1 rounded-xl bg-[#0e111a] border border-white/[0.08] inline-flex flex-wrap gap-1">
+            <button
+              onClick={() => setActiveTab('solutions')}
+              className={`btn-press flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                activeTab === 'solutions'
+                  ? 'bg-white text-black shadow-xs font-semibold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5 text-sky-400" />
+              <span>Цикл и решения</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-sky-500/20 text-sky-300 font-mono">
+                4
+              </span>
+            </button>
+
             <button
               onClick={() => setActiveTab('brief')}
               className={`btn-press flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
@@ -449,6 +466,19 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* TAB 0: AGENT REASONING LOOP & ENGINEERING SOLUTIONS */}
+        {activeTab === 'solutions' && agentData && (
+          <div className="space-y-6">
+            <AgentSolutionsView
+              quantities={agentData.quantities}
+              solutions={agentData.solutions}
+              workBreakdown={agentData.work_breakdown}
+              loopSteps={agentData.agent_loop_steps}
+              onOpenWorkBrief={() => setActiveTab('brief')}
+            />
+          </div>
+        )}
 
         {/* TAB 1: WORKBRIEF SPECIFICATION (DIRECT PRODUCT OBJECT) */}
         {activeTab === 'brief' && agentData?.workbrief_draft && (

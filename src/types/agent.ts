@@ -158,6 +158,13 @@ export const HybridExtractionSchema = z.object({
 });
 export type HybridExtraction = z.infer<typeof HybridExtractionSchema>;
 
+import type {
+  CalculatedQuantities,
+  EngineeringSolution,
+  WorkBreakdownStage,
+  AgentLoopStep
+} from '@/core/tools/engineering-engine';
+
 export interface AgentRunResponse {
   query: string;
   engine_mode: 'deterministic' | 'hybrid' | 'deterministic_fallback';
@@ -183,4 +190,8 @@ export interface AgentRunResponse {
   };
   tool_traces: ToolExecutionTrace[];
   workbrief_draft: WorkBriefDraft | null;
+  quantities?: CalculatedQuantities;
+  solutions?: EngineeringSolution[];
+  work_breakdown?: WorkBreakdownStage[];
+  agent_loop_steps?: AgentLoopStep[];
 }
