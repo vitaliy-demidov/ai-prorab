@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07080B"/>
+      <stop offset="50%" stop-color="#0E121A"/>
+      <stop offset="100%" stop-color="#050608"/>
+    </linearGradient>
+
+    <radialGradient id="goldGlow" cx="80%" cy="20%" r="65%">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.2"/>
+      <stop offset="35%" stop-color="#AA820A" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="cyanGlow" cx="15%" cy="85%" r="55%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.14"/>
+      <stop offset="45%" stop-color="#007799" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="goldMetallic" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ECC86A"/>
+      <stop offset="35%" stop-color="#FFF5D6"/>
+      <stop offset="70%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#A67C1E"/>
+    </linearGradient>
+
+    <linearGradient id="cyanMetallic" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+
+    <pattern id="cyberGrid" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#D4AF37" stroke-width="0.65" stroke-opacity="0.08"/>
+      <circle cx="36" cy="0" r="0.8" fill="#D4AF37" fill-opacity="0.25"/>
+    </pattern>
+
+    <filter id="cardShadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.7"/>
+    </filter>
+  </defs>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;display=swap');
+    .font-mono { font-family: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace; }
+    .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif; }
+    
+    @keyframes pulseLive {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    .status-pulse { animation: pulseLive 2.4s ease-in-out infinite; }
+  </style>
+
+  <!-- Deep Obsidian Background -->
+  <rect width="1200" height="420" fill="url(#bgGrad)"/>
+  <rect width="1200" height="420" fill="url(#cyberGrid)"/>
+
+  <!-- Ambient Light Orbs -->
+  <circle cx="950" cy="90" r="380" fill="url(#goldGlow)"/>
+  <circle cx="160" cy="350" r="320" fill="url(#cyanGlow)"/>
+
+  <!-- Architectural Vector Grid Accents -->
+  <g stroke="#D4AF37" stroke-opacity="0.12" stroke-width="1">
+    <line x1="120" y1="0" x2="540" y2="420"/>
+    <line x1="720" y1="0" x2="1140" y2="420"/>
+    <circle cx="600" cy="210" r="260" fill="none" stroke="#D4AF37" stroke-opacity="0.04" stroke-dasharray="6 6"/>
+  </g>
+
+  <!-- Outer Frame Reticles -->
+  <g stroke="#ECC86A" stroke-width="1.5" stroke-opacity="0.5" fill="none">
+    <path d="M 28 44 L 28 28 L 44 28" />
+    <circle cx="28" cy="28" r="2" fill="#D4AF37"/>
+    <path d="M 1172 44 L 1172 28 L 1156 28" />
+    <circle cx="1172" cy="28" r="2" fill="#D4AF37"/>
+    <path d="M 28 376 L 28 392 L 44 392" />
+    <circle cx="28" cy="392" r="2" fill="#D4AF37"/>
+    <path d="M 1172 376 L 1172 392 L 1156 392" />
+    <circle cx="1172" cy="392" r="2" fill="#D4AF37"/>
+  </g>
+
+  <!-- Top System Header Bar -->
+  <g class="font-mono" font-size="10.5" letter-spacing="2" fill="#8896A6">
+    <text x="60" y="56" fill="#ECC86A" font-weight="700">CLUB 600 // SPEC-GRADE ARCHITECTURE</text>
+    <text x="800" y="56" text-anchor="end">SYS.VER: v2.4.0</text>
+    <text x="1140" y="56" text-anchor="end" fill="#00E5FF" class="status-pulse">● HITL_GUARD: ACTIVE</text>
+  </g>
+  <line x1="60" y1="70" x2="1140" y2="70" stroke="#D4AF37" stroke-opacity="0.22" stroke-width="1"/>
+
+  <!-- Club 600 Crest / Geometric Emblem -->
+  <g transform="translate(64, 114)">
+    <polygon points="46,0 92,26 92,78 46,104 0,78 0,26" fill="#121622" stroke="url(#goldMetallic)" stroke-width="2"/>
+    <polygon points="46,7 85,29 85,75 46,97 7,75 7,29" fill="none" stroke="#D4AF37" stroke-width="1" stroke-opacity="0.3" stroke-dasharray="3 3"/>
+    <!-- Crest Inner Glyph: Monogram 600 & Compass -->
+    <path d="M 32 38 L 60 38 C 68 38 72 43 72 52 C 72 61 68 66 60 66 L 32 66 Z" fill="none" stroke="#ECC86A" stroke-width="3" stroke-linejoin="round"/>
+    <line x1="32" y1="52" x2="55" y2="52" stroke="#ECC86A" stroke-width="2"/>
+    <circle cx="46" cy="52" r="3.5" fill="#00E5FF"/>
+  </g>
+
+  <!-- Typography Block -->
+  <g transform="translate(186, 116)">
+    <rect x="0" y="0" width="240" height="22" rx="4" fill="#161B28" stroke="#D4AF37" stroke-opacity="0.35"/>
+    <text x="10" y="15" class="font-mono" font-size="10" font-weight="700" fill="#ECC86A" letter-spacing="1.5">CONSTRUCTION AI OS · SPEC 2026</text>
+
+    <!-- Main Title -->
+    <text x="0" y="62" class="font-sans" font-size="44" font-weight="800" fill="url(#goldMetallic)" letter-spacing="-1">
+      CLUB 600
+    </text>
+    <text x="238" y="62" class="font-sans" font-size="44" font-weight="300" fill="#FFFFFF" letter-spacing="-0.5">
+      COLLECTIVE
+    </text>
+
+    <!-- Subtitle -->
+    <text x="0" y="96" class="font-sans" font-size="16.5" font-weight="400" fill="#9DA9B9" letter-spacing="0.1">
+      Deterministic Multi-Agent Engine &amp; Provable Safety Invariants for Construction
+    </text>
+  </g>
+
+  <!-- Right Telemetry HUD Box -->
+  <g transform="translate(805, 105)" filter="url(#cardShadow)">
+    <rect x="0" y="0" width="335" height="165" rx="8" fill="#0F131C" fill-opacity="0.88" stroke="#D4AF37" stroke-opacity="0.32" stroke-width="1.2"/>
+    <rect x="0" y="0" width="335" height="30" rx="8" fill="#151A26"/>
+    <circle cx="18" cy="15" r="4" fill="#ECC86A"/>
+    <circle cx="32" cy="15" r="4" fill="#64748B"/>
+    <circle cx="46" cy="15" r="4" fill="#334155"/>
+    <text x="64" y="19" class="font-mono" font-size="10" fill="#CBD5E1" font-weight="700" letter-spacing="1">SYSTEM_TELEMETRY.STATE</text>
+
+    <g class="font-mono" font-size="11" fill="#8896A6">
+      <text x="18" y="55">ENGINE_CORE:</text>
+      <text x="315" y="55" text-anchor="end" fill="#00E5FF" font-weight="600">DETERMINISTIC_RULES</text>
+
+      <text x="18" y="80">POLICY_GUARD:</text>
+      <text x="315" y="80" text-anchor="end" fill="#10B981" font-weight="600">7/7 INVARIANTS PASS</text>
+
+      <text x="18" y="105">PRICE_SPECULATION:</text>
+      <text x="315" y="105" text-anchor="end" fill="#ECC86A" font-weight="600">0% (HARD INTERCEPT)</text>
+
+      <text x="18" y="130">HUMAN_APPROVAL:</text>
+      <text x="315" y="130" text-anchor="end" fill="#FFFFFF" font-weight="600">MANDATORY GATE</text>
+
+      <text x="18" y="152">EXTERNAL_ACTIONS:</text>
+      <text x="315" y="152" text-anchor="end" fill="#EF4444" font-weight="600">LOCKED PENDING SIGN</text>
+    </g>
+  </g>
+
+  <!-- Bottom Bento Strip -->
+  <g transform="translate(60, 305)">
+    <!-- Bento 1 -->
+    <rect x="0" y="0" width="255" height="56" rx="6" fill="#0F131D" stroke="#1F283B" stroke-width="1.2"/>
+    <circle cx="26" cy="28" r="12" fill="#D4AF37" fill-opacity="0.15"/>
+    <text x="26" y="32" text-anchor="middle" class="font-mono" font-size="11" fill="#ECC86A" font-weight="700">§</text>
+    <text x="48" y="24" class="font-sans" font-size="13" font-weight="700" fill="#F1F5F9">Fact Provenance</text>
+    <text x="48" y="42" class="font-sans" font-size="11" fill="#64748B">Zero hallucinated estimates</text>
+
+    <!-- Bento 2 -->
+    <rect x="275" y="0" width="255" height="56" rx="6" fill="#0F131D" stroke="#1F283B" stroke-width="1.2"/>
+    <circle cx="301" cy="28" r="12" fill="#00E5FF" fill-opacity="0.15"/>
+    <text x="301" y="32" text-anchor="middle" class="font-mono" font-size="11" fill="#00E5FF" font-weight="700">⚡</text>
+    <text x="323" y="24" class="font-sans" font-size="13" font-weight="700" fill="#F1F5F9">Policy Guard Layer</text>
+    <text x="323" y="42" class="font-sans" font-size="11" fill="#64748B">Strict domain invariants</text>
+
+    <!-- Bento 3 -->
+    <rect x="550" y="0" width="255" height="56" rx="6" fill="#0F131D" stroke="#1F283B" stroke-width="1.2"/>
+    <circle cx="576" cy="28" r="12" fill="#10B981" fill-opacity="0.15"/>
+    <text x="576" y="32" text-anchor="middle" class="font-mono" font-size="11" fill="#10B981" font-weight="700">✓</text>
+    <text x="598" y="24" class="font-sans" font-size="13" font-weight="700" fill="#F1F5F9">Human Approval Gate</text>
+    <text x="598" y="42" class="font-sans" font-size="11" fill="#64748B">WorkBrief signed by client</text>
+
+    <!-- Bento 4 -->
+    <rect x="825" y="0" width="255" height="56" rx="6" fill="#0F131D" stroke="#D4AF37" stroke-opacity="0.38" stroke-width="1.2"/>
+    <circle cx="851" cy="28" r="12" fill="#ECC86A" fill-opacity="0.15"/>
+    <text x="851" y="32" text-anchor="middle" class="font-mono" font-size="11" fill="#ECC86A" font-weight="700">∞</text>
+    <text x="873" y="24" class="font-sans" font-size="13" font-weight="700" fill="#ECC86A">Production Rigor</text>
+    <text x="873" y="42" class="font-sans" font-size="11" fill="#9DA9B9">Sub-20ms deterministic core</text>
+  </g>
+
+  <!-- Bottom Ticker -->
+  <line x1="60" y1="386" x2="1140" y2="386" stroke="#D4AF37" stroke-opacity="0.16" stroke-width="1"/>
+  <g class="font-mono" font-size="9" fill="#586576" letter-spacing="1.2">
+    <text x="60" y="403">REPO: AI_PRORAB // HACKALEM_2026</text>
+    <text x="600" y="403" text-anchor="middle">NEXT.JS 15 · TYPESCRIPT · TAILWIND · VITEST · ZOD</text>
+    <text x="1140" y="403" text-anchor="end">GOV: CLUB_600_STANDARDS</text>
+  </g>
+</svg>

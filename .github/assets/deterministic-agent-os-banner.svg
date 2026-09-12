@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="100%" height="100%">
+  <defs>
+    <linearGradient id="osBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#05070D"/>
+      <stop offset="60%" stop-color="#0B101E"/>
+      <stop offset="100%" stop-color="#060912"/>
+    </linearGradient>
+
+    <radialGradient id="cyanSpread" cx="20%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.16"/>
+      <stop offset="50%" stop-color="#3B82F6" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="50%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+
+    <pattern id="dotGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="0.75" fill="#38BDF8" fill-opacity="0.12"/>
+    </pattern>
+  </defs>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&amp;family=Plus+Jakarta+Sans:wght@500;700;800&amp;display=swap');
+    .font-mono { font-family: 'JetBrains Mono', 'SF Mono', monospace; }
+    .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; }
+  </style>
+
+  <rect width="1200" height="280" fill="url(#osBg)"/>
+  <rect width="1200" height="280" fill="url(#dotGrid)"/>
+  <circle cx="240" cy="100" r="320" fill="url(#cyanSpread)"/>
+
+  <!-- Border Reticles -->
+  <g stroke="#38BDF8" stroke-width="1.2" stroke-opacity="0.4" fill="none">
+    <path d="M 24 38 L 24 24 L 38 24" />
+    <path d="M 1176 38 L 1176 24 L 1162 24" />
+    <path d="M 24 242 L 24 256 L 38 256" />
+    <path d="M 1176 242 L 1176 256 L 1162 256" />
+  </g>
+
+  <!-- Left Emblem -->
+  <g transform="translate(60, 60)">
+    <rect x="0" y="0" width="76" height="76" rx="16" fill="#0E1526" stroke="#1E2B48" stroke-width="1.5"/>
+    <!-- Concentric rings / State loop -->
+    <circle cx="38" cy="38" r="24" fill="none" stroke="#00F0FF" stroke-width="2" stroke-dasharray="8 4"/>
+    <circle cx="38" cy="38" r="14" fill="none" stroke="#3B82F6" stroke-width="2"/>
+    <circle cx="38" cy="38" r="5" fill="#00F0FF"/>
+    <path d="M 38 8 L 38 18" stroke="#00F0FF" stroke-width="2"/>
+    <path d="M 38 58 L 38 68" stroke="#00F0FF" stroke-width="2"/>
+  </g>
+
+  <!-- Central Title Block -->
+  <g transform="translate(160, 62)">
+    <g class="font-mono" font-size="10.5" letter-spacing="2" fill="#38BDF8" font-weight="700">
+      <text x="0" y="14">AI PROTOSPEC // RUNTIME ENGINE</text>
+    </g>
+
+    <text x="0" y="52" class="font-sans" font-size="34" font-weight="800" fill="url(#cyanGrad)" letter-spacing="-0.5">
+      DETERMINISTIC AI AGENT OS
+    </text>
+
+    <text x="0" y="80" class="font-sans" font-size="15" font-weight="400" fill="#94A3B8">
+      Guaranteed Invariants · Fact Provenance Engine · Zero Speculative Pricing
+    </text>
+  </g>
+
+  <!-- Right Pill Metrics -->
+  <g transform="translate(860, 50)">
+    <rect x="0" y="0" width="280" height="98" rx="10" fill="#0D1322" stroke="#1E2A44" stroke-width="1.2"/>
+    
+    <g class="font-mono" font-size="11" fill="#64748B">
+      <text x="18" y="28">CORE_MODE:</text>
+      <text x="262" y="28" text-anchor="end" fill="#10B981" font-weight="700">DETERMINISTIC [7/7]</text>
+
+      <text x="18" y="56">LATENCY_P99:</text>
+      <text x="262" y="56" text-anchor="end" fill="#38BDF8" font-weight="700">18.4 MS</text>
+
+      <text x="18" y="84">DISPATCH_LOCK:</text>
+      <text x="262" y="84" text-anchor="end" fill="#ECC86A" font-weight="700">HITL_ENFORCED</text>
+    </g>
+  </g>
+
+  <!-- Bottom Flow Strip -->
+  <g transform="translate(60, 182)">
+    <rect x="0" y="0" width="1080" height="54" rx="8" fill="#0A0F1D" stroke="#18233A" stroke-width="1"/>
+
+    <!-- Step 1 -->
+    <g transform="translate(24, 18)" class="font-mono">
+      <circle cx="10" cy="10" r="10" fill="#1E2B48"/>
+      <text x="10" y="14" text-anchor="middle" font-size="10" fill="#38BDF8" font-weight="700">01</text>
+      <text x="30" y="14" class="font-sans" font-size="12.5" font-weight="700" fill="#F1F5F9">Input Ingestion</text>
+    </g>
+    <path d="M 195 28 L 225 28" stroke="#38BDF8" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+    <!-- Step 2 -->
+    <g transform="translate(240, 18)" class="font-mono">
+      <circle cx="10" cy="10" r="10" fill="#1E2B48"/>
+      <text x="10" y="14" text-anchor="middle" font-size="10" fill="#10B981" font-weight="700">02</text>
+      <text x="30" y="14" class="font-sans" font-size="12.5" font-weight="700" fill="#F1F5F9">Policy Interceptor</text>
+    </g>
+    <path d="M 425 28 L 455 28" stroke="#38BDF8" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+    <!-- Step 3 -->
+    <g transform="translate(470, 18)" class="font-mono">
+      <circle cx="10" cy="10" r="10" fill="#1E2B48"/>
+      <text x="10" y="14" text-anchor="middle" font-size="10" fill="#ECC86A" font-weight="700">03</text>
+      <text x="30" y="14" class="font-sans" font-size="12.5" font-weight="700" fill="#F1F5F9">Fact Extraction</text>
+    </g>
+    <path d="M 645 28 L 675 28" stroke="#38BDF8" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+    <!-- Step 4 -->
+    <g transform="translate(690, 18)" class="font-mono">
+      <circle cx="10" cy="10" r="10" fill="#1E2B48"/>
+      <text x="10" y="14" text-anchor="middle" font-size="10" fill="#818CF8" font-weight="700">04</text>
+      <text x="30" y="14" class="font-sans" font-size="12.5" font-weight="700" fill="#F1F5F9">Safe WorkBrief Draft</text>
+    </g>
+    <path d="M 885 28 L 915 28" stroke="#38BDF8" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+    <!-- Step 5 -->
+    <g transform="translate(930, 18)" class="font-mono">
+      <circle cx="10" cy="10" r="10" fill="#10B981" fill-opacity="0.2"/>
+      <text x="10" y="14" text-anchor="middle" font-size="10" fill="#10B981" font-weight="700">05</text>
+      <text x="30" y="14" class="font-sans" font-size="12.5" font-weight="700" fill="#10B981">Human Approval</text>
+    </g>
+  </g>
+
+  <!-- Micro Footer -->
+  <line x1="60" y1="255" x2="1140" y2="255" stroke="#1E293B" stroke-width="1"/>
+  <g class="font-mono" font-size="8.5" fill="#475569" letter-spacing="1">
+    <text x="60" y="268">ARCHITECTURE: DETERMINISTIC ORCHESTRATOR // INVARIANTS: 7/7 ACTIVE</text>
+    <text x="1140" y="268" text-anchor="end">STANDARDS COMPLIANT · CLUB 600 · 2026</text>
+  </g>
+</svg>
