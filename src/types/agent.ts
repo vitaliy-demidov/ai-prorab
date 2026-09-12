@@ -1,0 +1,118 @@
+import { z } from 'zod';
+
+export type FactSource = 'USER' | 'MODEL_EXTRACTION' | 'UNKNOWN';
+
+export const FactItemSchema = z.object({
+  value: z.union([z.string(), z.number()]).nullable(),
+  label: z.string(),
+  source: z.enum(['USER', 'MODEL_EXTRACTION', 'UNKNOWN']),
+  raw_token: z.string().optional(),
+});
+export type FactItem = z.infer<typeof FactItemSchema>;
+
+export const VerifiedFactsSchema = z.object({
+  city: FactItemSchema,
+  property_type: FactItemSchema,
+  area_sqm: FactItemSchema,
+  target_timeline_months: FactItemSchema,
+  special_requests: z.array(z.string()).default([]),
+});
+export type VerifiedFacts = z.infer<typeof VerifiedFactsSchema>;
+
+export const UnknownFieldItemSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: z.enum(['UNKNOWN', 'ASSUMED', 'VERIFIED']),
+  priority: z.enum(['CRITICAL', 'HIGH', 'MEDIUM']),
+  explanation: z.string(),
+  blocking_reason: z.string().optional(),
+});
+export type UnknownFieldItem = z.infer<typeof UnknownFieldItemSchema>;
+
+export const SmartQuestionSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  category: z.enum(['STATE', 'ACCESS', 'ENGINEERING', 'BUDGET']),
+  why_needed: z.string(),
+  recommended_options: z.array(z.string()),
+});
+export type SmartQuestion = z.infer<typeof SmartQuestionSchema>;
+
+export const RiskItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  severity: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'INFO']),
+  policy_rationale: z.string(),
+});
+export type RiskItem = z.infer<typeof RiskItemSchema>;
+
+export const PipelineStageSchema = z.object({
+  id: z.enum(['clarification', 'measurement', 'workbrief', 'rfq', 'comparison', 'human_confirmation']),
+  label: z.string(),
+  status: z.enum(['completed', 'active', 'pending', 'locked']),
+  stepNumber: z.number(),
+  description: z.string(),
+});
+export type PipelineStage = z.infer<typeof PipelineStageSchema>;
+
+export const WorkBriefDraftSchema = z.object({
+  idempotency_key: z.string(),
+  brief_id: z.string(),
+  created_at: z.string(),
+  title: z.string(),
+  status: z.enum(['DRAFT_PENDING_APPROVAL', 'APPROVED_BY_HUMAN']),
+  facts: VerifiedFactsSchema,
+  assumptions: z.array(z.string()),
+  open_unknowns: z.array(z.string()),
+  pre_measurement_guardrails: z.array(z.string()),
+  recommended_next_step: z.string(),
+  human_approval_required: z.literal(true),
+  cached: z.boolean().optional(),
+});
+export type WorkBriefDraft = z.infer<typeof WorkBriefDraftSchema>;
+
+export const ToolExecutionTraceSchema = z.object({
+  step: z.number(),
+  tool_name: z.string(),
+  description: z.string(),
+  timestamp: z.string(),
+  status: z.enum(['SUCCESS', 'GUARD_INTERCEPTED', 'FALLBACK']),
+  input_summary: z.record(z.any()),
+  output_summary: z.record(z.any()),
+  policy_decision: z.string(),
+});
+export type ToolExecutionTrace = z.infer<typeof ToolExecutionTraceSchema>;
+
+export interface PolicyNotice {
+  blocked: boolean;
+  rule: string;
+  message: string;
+  user_warning: string;
+}
+
+export interface AgentRunResponse {
+  query: string;
+  engine_mode: 'deterministic' | 'hybrid' | 'deterministic_fallback';
+  engine_badge: string;
+  policy_notice?: PolicyNotice | null;
+  facts: VerifiedFacts;
+  unknowns: UnknownFieldItem[];
+  questions: SmartQuestion[];
+  risks: RiskItem[];
+  pipeline: PipelineStage[];
+  readiness: {
+    brief_readiness_pct: number;
+    rfq_readiness_pct: number;
+    can_create_draft: boolean;
+    can_proceed_to_rfq: boolean;
+    rfq_block_reason: string;
+  };
+  safety_notice: {
+    title: string;
+    summary: string;
+    points: string[];
+  };
+  tool_traces: ToolExecutionTrace[];
+  workbrief_draft: WorkBriefDraft | null;
+}
