@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
+import { AgentSwarmTeam } from '@/components/AgentSwarmTeam';
 import { PipelineStepper } from '@/components/PipelineStepper';
 import { FactsMatrix } from '@/components/FactsMatrix';
 import { SmartQuestions } from '@/components/SmartQuestions';
@@ -256,50 +257,50 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col bg-obsidian-950 text-slate-100">
       <Header
         engineBadge={agentData?.engine_badge || 'Demo mode · Rules + Safety Guard'}
         engineMode={agentData?.engine_mode || 'deterministic'}
       />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-5">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* ВИДИМЫЙ БАННЕР ОШИБКИ API */}
         {apiError && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between shadow-xs">
+          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between shadow-card-dark">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span className="font-medium">{apiError}</span>
             </div>
             <button
               type="button"
               onClick={() => setApiError(null)}
-              className="text-rose-500 hover:text-rose-800 text-xs font-semibold px-2 py-0.5 rounded cursor-pointer"
+              className="text-rose-400 hover:text-rose-200 text-xs font-mono px-2 py-0.5 rounded cursor-pointer"
             >
               Закрыть
             </button>
           </div>
         )}
 
-        {/* HERO SECTION: ЗАПРОС СЛЕВА | «ЧТО АГЕНТ СДЕЛАЛ» СПРАВА */}
+        {/* HERO SECTION: ЗАПРОС СЛЕВА | «ЭКСПРЕСС-АУДИТ» СПРАВА */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
-          {/* Слева: ввод и пресеты (7 колонок) */}
-          <div className="md:col-span-7 bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          {/* Слева: командная консоль ввода (7 колонок) */}
+          <div className="md:col-span-7 bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-slate-500" />
+              <div className="flex items-center justify-between mb-2.5">
+                <label className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
                   Исходный запрос заказчика
                 </label>
                 <button
                   onClick={toggleSpeechInput}
-                  className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded transition-all border ${
+                  className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg transition-all border font-mono cursor-pointer ${
                     isListening
-                      ? 'bg-rose-100 text-rose-800 border-rose-300 animate-pulse'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
                   }`}
                 >
-                  {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-                  <span>{isListening ? 'Слушаю...' : 'Диктовать'}</span>
+                  {isListening ? <MicOff className="w-3.5 h-3.5 text-rose-400" /> : <Mic className="w-3.5 h-3.5 text-sky-400" />}
+                  <span>{isListening ? 'Идёт запись...' : 'Диктовать голос'}</span>
                 </button>
               </div>
 
@@ -307,101 +308,109 @@ export default function Home() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 rows={3}
-                placeholder="Введите параметры объекта или пожелания..."
-                className="w-full text-xs p-3 rounded-lg border border-slate-200 focus:border-slate-800 focus:outline-hidden font-sans text-slate-800 bg-slate-50/50 resize-none leading-relaxed"
+                placeholder="Введите параметры объекта или пожелания свободным языком..."
+                className="w-full text-xs p-3.5 rounded-xl border border-white/10 focus:border-sky-500/60 focus:outline-hidden font-sans text-white bg-obsidian-900/90 placeholder-slate-500 resize-none leading-relaxed transition-colors"
               />
 
               {/* Demo сценарии */}
-              <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1">
+              <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
                 {PRESETS.map((p) => {
                   const isSelected = query === p.text;
                   return (
                     <button
                       key={p.id}
                       onClick={() => handleSelectPreset(p.text)}
-                      className={`text-[11px] px-2.5 py-1 rounded-md transition-all whitespace-nowrap border ${
+                      className={`text-[11px] px-3 py-1.5 rounded-lg transition-all whitespace-nowrap border font-mono cursor-pointer flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-slate-900 text-white border-slate-900 font-medium'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                          ? 'bg-sky-500 text-obsidian-950 border-sky-400 shadow-glow-cyan font-bold'
+                          : 'bg-obsidian-900 hover:bg-obsidian-750 text-slate-300 border-white/10'
                       }`}
                     >
-                      {p.label}
+                      <span className="opacity-60 text-[9px] uppercase">[{p.badge}]</span>
+                      <span>{p.label.split(':')[0]}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Главный CTA: Разобрать запрос */}
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+            {/* Главный CTA: Разобрать запрос агентами */}
+            <div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-2">
               <button
                 onClick={() => runAgentAnalysis(query, userAnswers)}
                 disabled={isRunning || query.length < 3}
-                className="flex-1 py-2 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-xs disabled:bg-slate-300 cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-obsidian-950 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-glow-cyan disabled:bg-slate-800 disabled:text-slate-500 disabled:border-white/5 cursor-pointer"
               >
                 {isRunning ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-obsidian-950" />
                 ) : (
-                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <Play className="w-3.5 h-3.5 fill-obsidian-950 text-obsidian-950" />
                 )}
-                <span>{isRunning ? 'Разбор...' : 'Разобрать запрос'}</span>
+                <span>{isRunning ? 'Анализ роем агентов...' : 'Разобрать запрос роем агентов'}</span>
               </button>
             </div>
           </div>
 
-          {/* Справа: Карточка «Что агент сделал» (5 колонок) */}
-          <div className="md:col-span-5 bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          {/* Справа: Карточка «Экспресс-аудит объекта» (5 колонок) */}
+          <div className="md:col-span-5 bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-100">
-                <h3 className="text-xs font-bold text-slate-800">
-                  Что агент сделал
-                </h3>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  За 90 секунд
+              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                    Экспресс-аудит объекта
+                  </h3>
+                </div>
+                <span className="text-[10px] text-sky-400 font-mono bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">
+                  Время: ~90 сек
                 </span>
               </div>
 
               {agentData ? (
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-start gap-2">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex items-start gap-2.5 p-2 rounded-xl bg-obsidian-900/60 border border-white/5">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-medium text-slate-800">4 подтверждённых факта:</span>
-                      <span className="text-slate-500 block text-[11px]">
+                      <span className="font-bold text-white block">4 подтверждённых факта:</span>
+                      <span className="text-slate-400 block text-[11px] font-mono mt-0.5">
                         {agentData.facts.city.value || 'Город'}, {agentData.facts.property_type.value || 'квартира'}, {agentData.facts.area_sqm.value} м², {agentData.facts.target_timeline_months.value} мес.
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2.5 p-2 rounded-xl bg-obsidian-900/60 border border-white/5">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-medium text-slate-800">4 критических неизвестных:</span>
-                      <span className="text-slate-500 block text-[11px]">
-                        Состояние стяжки, бюджетный коридор, привязка стояков, доступ.
+                      <span className="font-bold text-white block">4 критических неизвестных:</span>
+                      <span className="text-slate-400 block text-[11px] mt-0.5">
+                        Состояние стяжки, бюджетный коридор, стояки ХВС/ГВС, доступ.
                       </span>
                     </div>
                   </div>
 
-                  <div className="p-2 rounded-md bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-tight">
-                    <strong className="text-slate-800">Safety Notice:</strong> Финальная стоимость не формируется до инструментального обмера специалистом и согласованного WorkBrief.
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200 leading-snug">
+                    <strong className="text-white block mb-0.5 font-mono">Safety Notice:</strong> Финальная стоимость не формируется до инструментального обмера специалистом.
                   </div>
                 </div>
               ) : (
-                <div className="text-xs text-slate-400 py-4">
-                  Ожидание анализа...
+                <div className="text-xs text-slate-500 py-6 text-center font-mono">
+                  Запустите разбор для инициализации роя агентов...
                 </div>
               )}
             </div>
 
             {agentData?.workbrief_draft && (
-              <div className="mt-3 pt-2.5 border-t border-slate-100">
+              <div className="mt-3 pt-3 border-t border-white/5">
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="w-full py-1.5 px-3 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5"
+                  className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    isHumanApproved
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-glow-emerald hover:bg-emerald-500/30'
+                      : 'bg-white/10 hover:bg-white/15 text-white border border-white/15'
+                  }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>{isHumanApproved ? 'WorkBrief подтверждён (Открыть)' : 'Открыть черновик WorkBrief'}</span>
+                  <span>{isHumanApproved ? 'WorkBrief Rev 1.0 утверждён (Открыть)' : 'Открыть черновик WorkBrief & Approval'}</span>
                 </button>
               </div>
             )}
@@ -410,18 +419,24 @@ export default function Home() {
 
         {/* POLICY GUARD NOTICE: ЕСЛИ БЫЛ ЗАПРОС НА ЦЕНУ */}
         {agentData?.policy_notice && (
-          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5 text-xs shadow-xs">
-            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-start gap-3 text-xs shadow-card-dark">
+            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <strong className="block text-slate-900 font-semibold">
+              <strong className="block text-white font-bold text-sm">
                 Запрос на точную цену перехвачен защитным контуром
               </strong>
-              <span className="text-slate-700 text-[11px] leading-relaxed">
+              <span className="text-amber-200/90 text-xs leading-relaxed block mt-1">
                 {agentData.policy_notice.user_warning} Финальная смета заблокирована до инструментального обмера специалистом.
               </span>
             </div>
           </div>
         )}
+
+        {/* РОЙ АВТОНОМНЫХ АГЕНТОВ (SWARM SHOWCASE & AVATARS) */}
+        <AgentSwarmTeam
+          isHumanApproved={isHumanApproved}
+          onOpenWorkBrief={() => setIsModalOpen(true)}
+        />
 
         {/* PROGRESS-LINE: ТОНКИЙ ГОРИЗОНТАЛЬНЫЙ РЕГЛАМЕНТ */}
         {agentData && (
@@ -453,33 +468,35 @@ export default function Home() {
 
         {/* СТРОГО ПО ПОРЯДКУ ИЗ ТЗ: СЛЕДУЮЩИЙ ШАГ И WORKBRIEF CTA */}
         {agentData && (
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+          <div className="bg-obsidian-850 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-card-dark flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
                 <Compass className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-bold block">
-                  Рекомендованный следующий шаг
+                <span className="text-[10px] font-mono uppercase text-amber-400 font-bold block">
+                  Рекомендованный следующий шаг • Агент «Виктор»
                 </span>
-                <h4 className="text-xs font-bold text-slate-900">
+                <h4 className="text-sm font-bold text-white mt-0.5">
                   Инструментальный обмер специалистом
                 </h4>
-                <p className="text-[11px] text-slate-500">
-                  Согласовать дату доступа на объект и снять фактическую геометрию до расчёта сметы.
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Согласовать дату доступа на объект и зафиксировать геометрию стен, стояков и стяжки до расчёта сметы.
                 </p>
               </div>
             </div>
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold text-white transition-all flex items-center gap-1.5 shadow-xs shrink-0 ${
-                isHumanApproved ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-slate-900 hover:bg-slate-800'
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold text-obsidian-950 transition-all flex items-center gap-2 shadow-glow-emerald shrink-0 cursor-pointer ${
+                isHumanApproved 
+                  ? 'bg-emerald-400 hover:bg-emerald-300' 
+                  : 'bg-emerald-500 hover:bg-emerald-400'
               }`}
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>{isHumanApproved ? 'WorkBrief подтверждён' : 'Черновик WorkBrief & Approval'}</span>
-              <ArrowRight className="w-3 h-3" />
+              <FileText className="w-4 h-4" />
+              <span>{isHumanApproved ? 'WorkBrief утверждён (Rev 1.0)' : 'Черновик WorkBrief & Approval'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
