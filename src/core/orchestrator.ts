@@ -22,7 +22,8 @@ import {
   calculateConstructionQuantities, 
   generateEngineeringSolutions, 
   generateWorkBreakdown, 
-  generateAgentLoopSteps 
+  generateAgentLoopSteps,
+  generateSkepticVerdicts
 } from './tools/engineering-engine';
 
 export interface RunAgentOptions {
@@ -375,6 +376,7 @@ export class AgentOrchestrator {
     const solutions = generateEngineeringSolutions(areaNum, propertyTypeStr);
     const work_breakdown = generateWorkBreakdown(areaNum);
     const agent_loop_steps = generateAgentLoopSteps(areaNum, cityStr);
+    const skeptic_verdicts = generateSkepticVerdicts(areaNum, propertyTypeStr);
 
     return {
       query,
@@ -395,6 +397,7 @@ export class AgentOrchestrator {
       solutions,
       work_breakdown,
       agent_loop_steps,
+      skeptic_verdicts,
     };
   }
 

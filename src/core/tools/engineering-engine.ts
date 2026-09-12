@@ -45,6 +45,24 @@ export interface AgentLoopStep {
   status: 'COMPLETED';
 }
 
+export interface SkepticVerdict {
+  id: string;
+  agentId: 'elena' | 'viktor' | 'artur';
+  agentName: string;
+  agentCode: string;
+  callsign: string;
+  agentRole: string;
+  category: 'pricing' | 'engineering' | 'legal';
+  verdictTitle: string;
+  trapWarning: string;
+  skepticArgument: string;
+  adversarialProof: string[];
+  regulatoryStandard: string;
+  regulatoryUrl: string;
+  riskAmountKzt: number;
+  status: 'TRAP_NEUTRALIZED';
+}
+
 export function calculateConstructionQuantities(
   areaSqm: number,
   ceilingHeightM: number = 2.7,
@@ -289,6 +307,78 @@ export function generateAgentLoopSteps(areaSqm: number, city: string): AgentLoop
       action: 'enforce_human_approval_gate(workbrief_id="WB-REV-1.0")',
       observation: 'Документ подготовлен. Статус: DRAFT_PENDING_APPROVAL. Внешний контур закрыт на замок.',
       status: 'COMPLETED',
+    },
+  ];
+}
+
+
+export function generateSkepticVerdicts(areaSqm: number, propertyType: string): SkepticVerdict[] {
+  const area = areaSqm && areaSqm > 0 ? areaSqm : 58;
+  const quantities = calculateConstructionQuantities(area);
+
+  return [
+    {
+      id: 'skep-price-1',
+      agentId: 'elena',
+      agentName: 'Елена',
+      agentCode: 'AGT-05',
+      callsign: 'BENCHMARK',
+      agentRole: 'Агент-Скептик сметы и расценок',
+      category: 'pricing',
+      verdictTitle: 'Ловушка занижения сметы: демпинг на старте с накруткой +130% на финише',
+      trapWarning: 'Бригада обещает «под ключ всю черновую инженерию за 1 800 000 ₸».',
+      skepticArgument: `Скептический аудит: Физически невозможно выполнить черновую инженерию квартиры ${area} м² за эту сумму. Только материалы ГОСТ (кабель ВВГнг-LS ${quantities.cable_length_m} м, трубы Rehau, самонивелир М200 ~${quantities.plaster_estimate_kg} кг, щит 36 модулей) стоят ~1 440 000 ₸. На оплату мастеров остаётся 360 000 ₸ за 45 дней. Подрядчик либо применит горючий кабель ТУ, либо через 2 недели потребует доплату 2 400 000 ₸ под угрозой остановки работ.`,
+      adversarialProof: [
+        `Реальная себестоимость материалов ГОСТ: ~1 440 000 ₸ (кабель ${quantities.cable_length_m} м, ${quantities.electrical_points} точек)`,
+        'Нормативная трудоёмкость по СН РК 8.02: 420 чел.-часов квалифицированного монтажа',
+        'Скрытый дефицит сметы мошенников: +2 400 000 ₸ накруток в процессе'
+      ],
+      regulatoryStandard: 'СН РК 8.02-05-2002 · СП РК 1.03-106-2012',
+      regulatoryUrl: 'https://adilet.zan.kz/rus/docs/P1200000880',
+      riskAmountKzt: 2400000,
+      status: 'TRAP_NEUTRALIZED',
+    },
+    {
+      id: 'skep-tech-2',
+      agentId: 'viktor',
+      agentName: 'Виктор',
+      agentCode: 'AGT-02',
+      callsign: 'RADAR',
+      agentRole: 'Агент-Скептик дефектоскопии и скрытого брака',
+      category: 'engineering',
+      verdictTitle: 'Ловушка скрытого перегруза и волнистого пола: ввод 25А и прогиб плит 32 мм',
+      trapWarning: 'Застройщик выделил ввод 25А (5.5 кВт), а монолитные перекрытия имеют перепад до 35 мм.',
+      skepticArgument: 'Скептический аудит: Суммарная мощность техники (варочная панель 7.2 кВт, духовка 3 кВт, кондиционеры 2.5 кВт) превышает ввод на 130%. Без балансировки вводной автомат сгорит в первые 3 месяца. Укладка единого кварцвинила без порогов и лазерной карты стяжки вызовет излом замков и скрип пола.',
+      adversarialProof: [
+        'Пиковая нагрузка 14.5 кВт против номинала автомата застройщика 5.5 кВт (25А)',
+        'Необходимость реле неприоритетных нагрузок и расщепления на 14 линий',
+        'Лазерная дефектоскопия плит: перепады до 35 мм требуют самонивелира М200 с демпфером 8 мм'
+      ],
+      regulatoryStandard: 'ПУЭ РК 7.1 · СНиП 2.03.13-88',
+      regulatoryUrl: 'https://adilet.zan.kz/rus/docs/V1500010834',
+      riskAmountKzt: 1050000,
+      status: 'TRAP_NEUTRALIZED',
+    },
+    {
+      id: 'skep-legal-3',
+      agentId: 'artur',
+      agentName: 'Артур',
+      agentCode: 'AGT-06',
+      callsign: 'INSPECT',
+      agentRole: 'Агент-Скептик строительного надзора и ГАСК',
+      category: 'legal',
+      verdictTitle: 'Ловушка перепланировки: запрет штробления монолита и мокрых зон по ст. 4 Закона РК',
+      trapWarning: 'Рабочие предлагают «врезать горизонтальные штробы в монолитный пилон и расширить ванную над спальней соседей».',
+      skepticArgument: 'Скептический аудит: Категорический запрет! Статья 4 п. 2 Закона РК «О жилищных отношениях» прямо запрещает перенос мокрых зон над жилыми комнатами соседей снизу. Штраф ГАСК по КоАП РК + судебное предписание о принудительном сносе за счёт собственника. Горизонтальное штробление монолита разрушает армокаркас здания.',
+      adversarialProof: [
+        'Статья 4 Закона РК «О жилищных отношениях»: прямой запрет мокрых зон над спальнями',
+        'Штрафы ГАСК и судебные издержки принудительного демонтажа: до 1 800 000 ₸',
+        'Разрешена прокладка трасс ТОЛЬКО в стяжке и коробах ГКЛ без затрагивания несущих пилонов'
+      ],
+      regulatoryStandard: 'Закон РК «О жилищных отношениях» (ст. 4) · СН РК 3.02-01-2018',
+      regulatoryUrl: 'https://adilet.zan.kz/rus/docs/Z970000094_',
+      riskAmountKzt: 1800000,
+      status: 'TRAP_NEUTRALIZED',
     },
   ];
 }

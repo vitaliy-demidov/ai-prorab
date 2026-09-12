@@ -6,7 +6,9 @@ import {
   EngineeringSolution, 
   WorkBreakdownStage, 
   AgentLoopStep,
-  calculateConstructionQuantities
+  SkepticVerdict,
+  calculateConstructionQuantities,
+  generateSkepticVerdicts
 } from '@/core/tools/engineering-engine';
 import { 
   Cpu, 
@@ -29,7 +31,11 @@ import {
   HelpCircle,
   Shield,
   FileSignature,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Scale,
+  Flame,
+  HardHat,
+  Lock
 } from 'lucide-react';
 
 interface AgentSolutionsViewProps {
@@ -37,6 +43,7 @@ interface AgentSolutionsViewProps {
   solutions?: EngineeringSolution[];
   workBreakdown?: WorkBreakdownStage[];
   loopSteps?: AgentLoopStep[];
+  skepticVerdicts?: SkepticVerdict[];
   onOpenWorkBrief?: () => void;
 }
 
@@ -45,11 +52,13 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
   solutions,
   workBreakdown,
   loopSteps,
+  skepticVerdicts: propSkepticVerdicts,
   onOpenWorkBrief,
 }) => {
   const [selectedStep, setSelectedStep] = useState<number>(1);
   const [selectedSolutionCategory, setSelectedSolutionCategory] = useState<string>('all');
   const [isExplainOpen, setIsExplainOpen] = useState<boolean>(false);
+  const [showSkeptics, setShowSkeptics] = useState<boolean>(true);
   
   // Interactive Live Calculator state
   const [interactiveArea, setInteractiveArea] = useState<number>(quantities?.floor_area_sqm || 58);
@@ -58,7 +67,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
 
   // Expanded schematics per solution
   const [expandedDiagrams, setExpandedDiagrams] = useState<Record<string, boolean>>({
-    'sol-elec-1': true, // open first by default to show capability
+    'sol-elec-1': true,
   });
 
   // Solutions included in WorkBrief
@@ -69,10 +78,22 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
     'sol-legal-4': true,
   });
 
+  // Skeptic traps neutralized
+  const [neutralizedTraps, setNeutralizedTraps] = useState<Record<string, boolean>>({
+    'skep-price-1': true,
+    'skep-tech-2': true,
+    'skep-legal-3': true,
+  });
+
   // Re-calculate dynamically if user plays with the interactive calculator
   const dynamicQuantities = useMemo(() => {
     return calculateConstructionQuantities(interactiveArea, interactiveHeight, interactiveType);
   }, [interactiveArea, interactiveHeight, interactiveType]);
+
+  // Skeptics list (dynamic based on current area)
+  const dynamicSkeptics = useMemo(() => {
+    return propSkepticVerdicts || generateSkepticVerdicts(interactiveArea, 'квартира');
+  }, [propSkepticVerdicts, interactiveArea]);
 
   const filteredSolutions = solutions?.filter((s) => 
     selectedSolutionCategory === 'all' ? true : s.category === selectedSolutionCategory
@@ -88,16 +109,31 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
     setAppliedSolutions((prev) => ({ ...prev, [solId]: !prev[solId] }));
   };
 
-  // Total risk saved calculation
+  const toggleTrapNeutralized = (trapId: string) => {
+    setNeutralizedTraps((prev) => ({ ...prev, [trapId]: !prev[trapId] }));
+  };
+
+  // Total risk saved calculation (Solutions + Skeptics)
   const totalRiskSavedKzt = useMemo(() => {
-    if (!solutions) return 5350000;
-    return solutions
-      .filter((s) => appliedSolutions[s.id])
-      .reduce((sum, s) => sum + (s.risk_amount_kzt || 0), 0);
+    let sum = 0;
+    if (solutions) {
+      sum += solutions
+        .filter((s) => appliedSolutions[s.id])
+        .reduce((acc, s) => acc + (s.risk_amount_kzt || 0), 0);
+    } else {
+      sum += 5350000;
+    }
+    return sum;
   }, [solutions, appliedSolutions]);
 
+  const totalSkepticsSavedKzt = useMemo(() => {
+    return dynamicSkeptics
+      .filter((v) => neutralizedTraps[v.id])
+      .reduce((acc, v) => acc + (v.riskAmountKzt || 0), 0);
+  }, [dynamicSkeptics, neutralizedTraps]);
+
   return (
-    <div className="space-y-6 text-slate-100">
+    <div id="solutions-section" className="space-y-6 text-slate-100 scroll-mt-20">
       {/* Top Banner: What problem does this solve & Explainer drawer */}
       <div className="p-4 sm:p-5 rounded-2xl bg-[#0e111a] border border-white/[0.08] shadow-2xl space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -110,6 +146,10 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
                 <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
                   Интеллектуальный контур решений
                 </span>
+                <span className="text-[10px] font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-rose-400" />
+                  3 Агента-Скептика активны
+                </span>
                 <span className="text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 px-2 py-0.5 rounded-full font-semibold">
                   4 коллизии устранено
                 </span>
@@ -118,7 +158,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                Автономный цифровой технадзор: анализирует исходные данные, защищает от скрытых наценок, вычисляет физические объёмы и формирует решения по СНиП РК.
+                Автономный рой с контуром агентов-скептиков: блокирует демпинг мошенников, рассчитывает физические объёмы материалов и выпускает юридически чистое ТЗ по СНиП РК.
               </p>
             </div>
           </div>
@@ -145,38 +185,168 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
           </div>
         </div>
 
-        {/* Explainer Drawer (Answers user's question directly) */}
+        {/* Explainer Drawer */}
         {isExplainOpen && (
           <div className="pt-3 mt-2 border-t border-white/[0.06] grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
             <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05] space-y-1">
-              <span className="font-semibold text-sky-300 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-sky-400" />
-                1. Проблема: обман и допы
+              <span className="font-semibold text-rose-300 flex items-center gap-1.5">
+                <Scale className="w-4 h-4 text-rose-400" />
+                1. Агенты-Скептики ищут ловушки
               </span>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Бригады занижают смету на входе («сделаем за 2 млн»), а при ремонте накручивают допы на 5 млн и штробят несущий монолит. Агент исключает это до подписания договора.
-              </p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05] space-y-1">
-              <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-emerald-400" />
-                2. Решение: расчёт по СНиП
-              </span>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Агент проверяет вводную мощность (25А / 5.5 кВт vs 14 кВт техники), толщину стяжки, узлы гидроизоляции и нормы перепланировки РК, формируя готовые инженерные узлы.
+                Скептики намеренно атакуют смету бригад на предмет демпинга (занижение цены на старте ради аванса с последующим вымогательством 2.4 млн ₸).
               </p>
             </div>
 
             <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05] space-y-1">
               <span className="font-semibold text-amber-300 flex items-center gap-1.5">
-                <FileSpreadsheet className="w-4 h-4 text-amber-400" />
-                3. Ценность: точные объёмы
+                <Zap className="w-4 h-4 text-amber-400" />
+                2. Инженерные коллизии по СНиП
               </span>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                Вы получаете точный расчёт материалов (стены, проводка, розетки, сухие смеси) и юридический WorkBrief. Бригада не сможет списать лишние 50 мешков или 200 м кабеля.
+                Агент проверяет вводную мощность (25А / 5.5 кВт vs 14.5 кВт техники), толщину стяжки и узлы гидроизоляции, формируя готовые решения с официальными ссылками на adilet.zan.kz.
               </p>
             </div>
+
+            <div className="p-3 rounded-xl bg-black/40 border border-white/[0.05] space-y-1">
+              <span className="font-semibold text-emerald-300 flex items-center gap-1.5">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                3. Точные физические объёмы
+              </span>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Калькулятор рассчитывает точный метраж стен, проводки, розеток и сухих смесей. Бригада не сможет списать лишние 50 мешков или 200 м кабеля.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SPECIAL BLOCK: SKEPTIC AGENTS ADVERSARIAL AUDIT (USER REQUEST) */}
+      <div className="specular-card rounded-2xl p-4 sm:p-6 space-y-4 border border-rose-500/25 bg-gradient-to-b from-rose-950/15 via-[#0b0d14] to-[#07090e]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-500/20 pb-3">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 mt-0.5">
+              <Scale className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono text-rose-400 uppercase tracking-wider font-bold">
+                  Skeptic Agents Adversarial Audit Layer
+                </span>
+                <span className="text-[10px] font-mono bg-rose-500/20 text-rose-200 border border-rose-500/40 px-2 py-0.5 rounded-full font-bold">
+                  3 ловушки парировано
+                </span>
+              </div>
+              <h3 className="text-sm font-bold text-white mt-0.5 font-sans">
+                Аудит Агентов-Скептиков: Защита от скрытых строительных ловушек
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold text-rose-300 bg-rose-500/10 border border-rose-500/25 px-3 py-1 rounded-xl">
+              Парировано рисков: {totalSkepticsSavedKzt.toLocaleString('ru-RU')} ₸
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowSkeptics(!showSkeptics)}
+              className="btn-press text-[11px] px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08] cursor-pointer"
+            >
+              {showSkeptics ? 'Свернуть' : 'Развернуть (3)'}
+            </button>
+          </div>
+        </div>
+
+        {showSkeptics && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 pt-1">
+            {dynamicSkeptics.map((skep) => {
+              const isNeutralized = neutralizedTraps[skep.id] ?? true;
+              return (
+                <div
+                  key={skep.id}
+                  className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 bg-black/50 ${
+                    isNeutralized ? 'border-rose-500/30 hover:border-rose-500/50' : 'border-white/[0.06] opacity-60'
+                  }`}
+                >
+                  <div className="space-y-2.5">
+                    {/* Header with Agent Badge */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono text-[10px] font-bold flex items-center justify-center">
+                          {skep.agentCode}
+                        </span>
+                        <div>
+                          <span className="text-xs font-bold text-white block">{skep.agentName}</span>
+                          <span className="text-[9px] font-mono text-slate-400 block">{skep.agentRole}</span>
+                        </div>
+                      </div>
+
+                      <a
+                        href={skep.regulatoryUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Открыть нормативный акт на adilet.zan.kz"
+                        className="btn-press text-[9px] font-mono bg-white/[0.05] hover:bg-white/[0.1] text-sky-300 border border-white/[0.1] px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Закон РК</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+
+                    {/* Title */}
+                    <h4 className="text-xs font-bold text-rose-200 leading-snug">
+                      {skep.verdictTitle}
+                    </h4>
+
+                    {/* Trap Box */}
+                    <div className="p-2.5 rounded-lg bg-rose-950/30 border border-rose-500/20 text-[11px] text-rose-200">
+                      <span className="font-mono text-[10px] text-rose-400 uppercase font-bold block mb-0.5">
+                        ⚠️ Ловушка подрядчика:
+                      </span>
+                      <p className="leading-relaxed">{skep.trapWarning}</p>
+                    </div>
+
+                    {/* Skeptic Argument */}
+                    <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[11px] text-slate-300 space-y-1.5">
+                      <span className="font-mono text-[10px] text-amber-300 uppercase font-bold block">
+                        🔍 Анализ скептика:
+                      </span>
+                      <p className="leading-relaxed font-sans text-xs">{skep.skepticArgument}</p>
+                      
+                      {/* Adversarial Proof bullets */}
+                      <ul className="pt-1.5 border-t border-white/[0.05] space-y-1 text-[10px] font-mono text-slate-300">
+                        {skep.adversarialProof.map((pf, pIdx) => (
+                          <li key={pIdx} className="flex items-start gap-1.5">
+                            <Check className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                            <span>{pf}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Footer Action */}
+                  <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-mono font-bold text-emerald-400">
+                      +{skep.riskAmountKzt.toLocaleString('ru-RU')} ₸ спасено
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleTrapNeutralized(skep.id)}
+                      className={`btn-press text-[11px] px-2.5 py-1 rounded-lg font-medium flex items-center gap-1 cursor-pointer transition-all ${
+                        isNeutralized
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold'
+                          : 'bg-white/[0.04] text-slate-400 border border-white/[0.08]'
+                      }`}
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{isNeutralized ? 'Ловушка парирована ✓' : 'Исключить'}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

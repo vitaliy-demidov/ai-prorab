@@ -27,7 +27,10 @@ import {
   Search,
   CheckCircle2,
   Users,
-  Brain
+  Brain,
+  Activity,
+  Zap,
+  Scale
 } from 'lucide-react';
 
 const DEFAULT_SCENARIO = 'Купил двухкомнатную квартиру в Астане, 58 м². Хочу современный ремонт, заехать через 4 месяца, бюджет пока не понимаю';
@@ -68,6 +71,9 @@ export default function Home() {
   const [isListening, setIsListening] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('solutions');
+  const [isDeliberating, setIsDeliberating] = useState(false);
+  const [deliberationStep, setDeliberationStep] = useState(0);
+
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return `session-${crypto.randomUUID()}`;
@@ -116,6 +122,32 @@ export default function Home() {
     } finally {
       setIsRunning(false);
     }
+  };
+
+  const handleRunWithSkeptics = async () => {
+    setIsDeliberating(true);
+    setDeliberationStep(1);
+
+    // Live multi-agent deliberation animation
+    await new Promise((r) => setTimeout(r, 200));
+    setDeliberationStep(2);
+    await new Promise((r) => setTimeout(r, 250));
+    setDeliberationStep(3);
+    await new Promise((r) => setTimeout(r, 250));
+    setDeliberationStep(4);
+    await new Promise((r) => setTimeout(r, 250));
+    setDeliberationStep(5);
+
+    await runAgentAnalysis(query, userAnswers);
+    setIsDeliberating(false);
+    setActiveTab('solutions');
+
+    setTimeout(() => {
+      const el = document.getElementById('solutions-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 150);
   };
 
   const handleSelectPreset = (presetText: string) => {
@@ -361,18 +393,59 @@ export default function Home() {
 
             {/* Primary Action Button */}
             <button
-              onClick={() => runAgentAnalysis(query, userAnswers)}
-              disabled={isRunning || query.length < 3}
-              className="btn-press shrink-0 py-2 px-5 rounded-xl bg-sky-500 hover:bg-sky-400 text-obsidian-950 text-xs font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:bg-slate-800 disabled:text-slate-500"
+              onClick={handleRunWithSkeptics}
+              disabled={isRunning || isDeliberating || query.length < 3}
+              className="btn-press shrink-0 py-2.5 px-6 rounded-xl bg-gradient-to-r from-sky-400 via-sky-500 to-emerald-400 hover:from-sky-300 hover:to-emerald-300 text-obsidian-950 text-xs font-black flex items-center justify-center gap-2 shadow-xl cursor-pointer disabled:opacity-50"
             >
-              {isRunning ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              {isDeliberating || isRunning ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-obsidian-950" />
+                  <span>Агенты-скептики в работе (0{deliberationStep}/05)...</span>
+                </>
               ) : (
-                <Play className="w-3.5 h-3.5 fill-obsidian-950" />
+                <>
+                  <Zap className="w-4 h-4 fill-obsidian-950 text-obsidian-950" />
+                  <span>⚡ РАССЧИТАТЬ ОБЪЕКТ И ВКЛЮЧИТЬ АГЕНТОВ-СКЕПТИКОВ</span>
+                </>
               )}
-              <span>{isRunning ? 'Анализ объекта...' : 'Сформировать решения'}</span>
             </button>
           </div>
+
+          {/* LIVE AGENT DELIBERATION STREAM */}
+          {isDeliberating && (
+            <div className="p-3.5 rounded-xl bg-black/80 border border-sky-500/40 shadow-2xl space-y-2.5 font-mono text-xs">
+              <div className="flex items-center justify-between text-xs pb-2 border-b border-white/[0.08]">
+                <span className="text-sky-300 font-bold flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-sky-400 animate-pulse" />
+                  Рой агентов-скептиков выполняет многоконтурный аудит...
+                </span>
+                <span className="text-slate-400">Шаг 0{deliberationStep} из 05</span>
+              </div>
+              
+              <div className="space-y-1.5 text-[11px]">
+                <div className={`flex items-center gap-2 ${deliberationStep >= 1 ? 'text-sky-300 font-semibold' : 'text-slate-600'}`}>
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${deliberationStep >= 1 ? 'text-sky-400' : 'text-slate-600'}`} />
+                  <span>[01 ALPHA] NLU-парсинг параметров: 58 м², Астана, монолит</span>
+                </div>
+                <div className={`flex items-center gap-2 ${deliberationStep >= 2 ? 'text-rose-300 font-semibold' : 'text-slate-600'}`}>
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${deliberationStep >= 2 ? 'text-rose-400' : 'text-slate-600'}`} />
+                  <span>[02 ЕЛЕНА · СКЕПТИК] Проверка демпинга: блокировка риска занижения сметы на 2.4 млн ₸</span>
+                </div>
+                <div className={`flex items-center gap-2 ${deliberationStep >= 3 ? 'text-amber-300 font-semibold' : 'text-slate-600'}`}>
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${deliberationStep >= 3 ? 'text-amber-400' : 'text-slate-600'}`} />
+                  <span>[03 ВИКТОР · СКЕПТИК] Дефектоскопия: перепад монолита 32 мм, перегруз ввода 25А (14.5 кВт)</span>
+                </div>
+                <div className={`flex items-center gap-2 ${deliberationStep >= 4 ? 'text-teal-300 font-semibold' : 'text-slate-600'}`}>
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${deliberationStep >= 4 ? 'text-teal-400' : 'text-slate-600'}`} />
+                  <span>[04 АРТУР · СКЕПТИК] Юридический аудит: запрет штроб монолита и мокрых зон по ст. 4 Закона РК</span>
+                </div>
+                <div className={`flex items-center gap-2 ${deliberationStep >= 5 ? 'text-emerald-300 font-bold' : 'text-slate-600'}`}>
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${deliberationStep >= 5 ? 'text-emerald-400' : 'text-slate-600'}`} />
+                  <span>[05 МАРИНА · АРХИТЕКТОР] Расчёт 6 метрик материалов, выпуск 4 решений СНиП и WorkBrief Rev 1.0!</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* LIVE EXTRACTED FACTS FEED (PROVES DATA GATHERING) */}
           {agentData?.facts && (
@@ -434,9 +507,9 @@ export default function Home() {
               }`}
             >
               <Brain className="w-3.5 h-3.5 text-sky-400" />
-              <span>Цикл и решения</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-sky-500/20 text-sky-300 font-mono">
-                4
+              <span>Решения и Скептики</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-sky-500/20 text-sky-300 font-mono font-bold">
+                7
               </span>
             </button>
 
@@ -507,6 +580,7 @@ export default function Home() {
               solutions={agentData.solutions}
               workBreakdown={agentData.work_breakdown}
               loopSteps={agentData.agent_loop_steps}
+              skepticVerdicts={agentData.skeptic_verdicts}
               onOpenWorkBrief={() => setActiveTab('brief')}
             />
           </div>

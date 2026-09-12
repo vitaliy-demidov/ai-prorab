@@ -162,7 +162,8 @@ import type {
   CalculatedQuantities,
   EngineeringSolution,
   WorkBreakdownStage,
-  AgentLoopStep
+  AgentLoopStep,
+  SkepticVerdict
 } from '@/core/tools/engineering-engine';
 
 export interface AgentRunResponse {
@@ -194,4 +195,5 @@ export interface AgentRunResponse {
   solutions?: EngineeringSolution[];
   work_breakdown?: WorkBreakdownStage[];
   agent_loop_steps?: AgentLoopStep[];
+  skeptic_verdicts?: SkepticVerdict[];
 }
