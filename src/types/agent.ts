@@ -166,7 +166,8 @@ import type {
   SkepticVerdict,
   MarketScrapedItem,
   ProjectBlueprint,
-  SpecializedAgentStage
+  SpecializedAgentStage,
+  ProjectConsensusPassport,
 } from '@/core/tools/engineering-engine';
 
 export interface AgentRunResponse {
@@ -202,4 +203,5 @@ export interface AgentRunResponse {
   market_materials?: MarketScrapedItem[];
   project_blueprints?: ProjectBlueprint[];
   specialized_agent_stages?: SpecializedAgentStage[];
+  project_passport?: ProjectConsensusPassport;
 }

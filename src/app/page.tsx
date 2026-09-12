@@ -584,7 +584,8 @@ export default function Home() {
               marketMaterials={agentData.market_materials}
               projectBlueprints={agentData.project_blueprints}
               specializedStages={agentData.specialized_agent_stages}
-              city={agentData.facts?.city?.value || 'Астана'}
+              passport={agentData.project_passport}
+              city={String(agentData.facts?.city?.value || 'Астана')}
               onOpenWorkBrief={() => setActiveTab('brief')}
             />
           </div>

@@ -1170,3 +1170,5 @@ export function generateSpecializedAgentStages(areaSqm: number, city: string): S
     },
   ];
 }
+
+export * from './consensus-passport-engine';

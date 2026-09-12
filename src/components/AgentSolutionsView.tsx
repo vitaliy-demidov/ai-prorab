@@ -14,10 +14,14 @@ import {
   generateSkepticVerdicts, 
   generateMarketScrapedMaterials, 
   generateProjectBlueprints, 
-  generateSpecializedAgentStages 
+  generateSpecializedAgentStages,
+  generateProjectConsensusPassport,
+  ProjectConsensusPassport
 } from '@/core/tools/engineering-engine';
 import { ArchitecturalFloorPlan } from '@/components/ArchitecturalFloorPlan';
 import { BenchmarkFoundationView } from '@/components/BenchmarkFoundationView';
+import { ProjectConsensusPassportView } from '@/components/passport/ProjectConsensusPassportView';
+import { StickyExecutiveBar } from '@/components/passport/StickyExecutiveBar';
 import { 
   Cpu, 
   Zap, 
@@ -65,6 +69,7 @@ interface AgentSolutionsViewProps {
   marketMaterials?: MarketScrapedItem[];
   projectBlueprints?: ProjectBlueprint[];
   specializedStages?: SpecializedAgentStage[];
+  passport?: ProjectConsensusPassport;
   city?: string;
   onOpenWorkBrief?: () => void;
 }
@@ -78,6 +83,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
   marketMaterials: propMarketMaterials,
   projectBlueprints: propProjectBlueprints,
   specializedStages: propSpecializedStages,
+  passport: propPassport,
   city = 'Астана',
   onOpenWorkBrief,
 }) => {
@@ -97,8 +103,9 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
   const [showSkeptics, setShowSkeptics] = useState<boolean>(true);
   const [showCalculator, setShowCalculator] = useState<boolean>(false);
   
-  // Hero Tab Switcher: 'overview' | 'blueprint' | 'benchmark'
-  const [heroTab, setHeroTab] = useState<'overview' | 'blueprint' | 'benchmark'>('blueprint');
+  // Hero Tab Switcher: 'passport' | 'blueprint' | 'overview' | 'benchmark'
+  const [heroTab, setHeroTab] = useState<'passport' | 'blueprint' | 'overview' | 'benchmark'>('passport');
+  const [isPassportApproved, setIsPassportApproved] = useState<boolean>(false);
 
   // Interactive Live Calculator state
   const [interactiveArea, setInteractiveArea] = useState<number>(quantities?.floor_area_sqm || 58);
@@ -165,6 +172,14 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
   const totalMaterialsSumKzt = useMemo(() => {
     return filteredMaterials.reduce((sum, item) => sum + item.totalCostKzt, 0);
   }, [filteredMaterials]);
+
+  // Turnkey Consensus Passport (A-to-Z Dynamic Synthesis)
+  const dynamicPassport: ProjectConsensusPassport = useMemo(() => {
+    if (propPassport && propPassport.floor_area_sqm === interactiveArea && propPassport.renovation_type === interactiveType) {
+      return propPassport;
+    }
+    return generateProjectConsensusPassport(interactiveArea, interactiveHeight, interactiveType, city);
+  }, [propPassport, interactiveArea, interactiveHeight, interactiveType, city]);
 
   // Specialized Agent Stages
   const dynamicAgentStages = useMemo(() => {
@@ -311,11 +326,24 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
           </div>
           {/* Hero Sub-Views Switcher: Overview / Blueprint / Benchmark */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/60 border border-white/[0.08] font-mono text-xs">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/60 border border-white/[0.08] font-mono text-xs overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setHeroTab('passport')}
+                className={`btn-press px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
+                  heroTab === 'passport'
+                    ? 'bg-gradient-to-r from-emerald-400 via-sky-400 to-amber-400 text-obsidian-950 font-black shadow-md shadow-sky-500/20'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>🏆 Единый Паспорт (А→Я)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setHeroTab('blueprint')}
-                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all ${
+                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
                   heroTab === 'blueprint'
                     ? 'bg-gradient-to-r from-sky-400 to-sky-500 text-obsidian-950 font-bold shadow-md shadow-sky-500/20'
                     : 'text-slate-400 hover:text-white'
@@ -328,7 +356,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setHeroTab('overview')}
-                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all ${
+                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
                   heroTab === 'overview'
                     ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-obsidian-950 font-bold shadow-md shadow-amber-500/20'
                     : 'text-slate-400 hover:text-white'
@@ -341,7 +369,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setHeroTab('benchmark')}
-                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all ${
+                className={`btn-press px-3 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-all ${
                   heroTab === 'benchmark'
                     ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 text-obsidian-950 font-bold shadow-md shadow-emerald-500/20'
                     : 'text-slate-400 hover:text-white'
@@ -359,6 +387,14 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
         </div>
 
         {/* Dynamic Hero Sub-View Content */}
+        {heroTab === 'passport' && (
+          <ProjectConsensusPassportView
+            passport={dynamicPassport}
+            onOpenWorkBrief={onOpenWorkBrief}
+            onSelectBlueprint={(bpId) => setSelectedProjectId(bpId)}
+          />
+        )}
+
         {heroTab === 'blueprint' && (
           <ArchitecturalFloorPlan
             areaSqm={interactiveArea}
@@ -501,7 +537,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
       {/* =========================================================================
           SECTION 2: DEDICATED ARCHITECTURAL 2D BLUEPRINT (ВИЗУАЛЬНЫЙ ЧЕРТЁЖ И ПЛАНИРОВКА)
           ========================================================================= */}
-      {heroTab !== 'blueprint' && (
+      {heroTab !== 'blueprint' && heroTab !== 'passport' && (
         <div id="architectural-project-section" className="scroll-mt-20">
           <ArchitecturalFloorPlan
             areaSqm={interactiveArea}
@@ -514,7 +550,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
       {/* =========================================================================
           SECTION 3: BENCHMARK BASELINE & 3-TIER PERFORMANCE (ОТ ЧЕГО ОТТАЛКИВАЕТСЯ РАСЧЁТ)
           ========================================================================= */}
-      {heroTab !== 'benchmark' && (
+      {heroTab !== 'benchmark' && heroTab !== 'passport' && (
         <div id="benchmark-section" className="scroll-mt-20">
           <BenchmarkFoundationView
             areaSqm={interactiveArea}
@@ -1306,6 +1342,21 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Sticky Executive Action Dock */}
+      <StickyExecutiveBar
+        totalBudgetKzt={dynamicPassport.total_budget_kzt}
+        preventedRisksKzt={dynamicPassport.avoided_risk_total_kzt}
+        activeTrancheNumber={2}
+        isPassportApproved={isPassportApproved}
+        onApprovePassport={() => {
+          setIsPassportApproved(true);
+          if (onOpenWorkBrief) onOpenWorkBrief();
+        }}
+        onCallTechSupervision={() => {
+          alert('Заявка на инструментальный технадзор принята. Инженер технадзора выезжает на объект с лазерным уровнем и CM-влагомером.');
+        }}
+      />
     </div>
   );
 };

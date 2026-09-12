@@ -26,7 +26,8 @@ import {
   generateSkepticVerdicts,
   generateMarketScrapedMaterials,
   generateProjectBlueprints,
-  generateSpecializedAgentStages
+  generateSpecializedAgentStages,
+  generateProjectConsensusPassport
 } from './tools/engineering-engine';
 
 export interface RunAgentOptions {
@@ -391,6 +392,7 @@ export class AgentOrchestrator {
     const market_materials = generateMarketScrapedMaterials(areaNum, 'optimal');
     const project_blueprints = generateProjectBlueprints(areaNum, renovationType);
     const specialized_agent_stages = generateSpecializedAgentStages(areaNum, cityStr);
+    const project_passport = generateProjectConsensusPassport(areaNum, 2.7, renovationType, cityStr, 'proj-optimal');
 
     return {
       query,
@@ -415,6 +417,7 @@ export class AgentOrchestrator {
       market_materials,
       project_blueprints,
       specialized_agent_stages,
+      project_passport,
     };
   }
 
