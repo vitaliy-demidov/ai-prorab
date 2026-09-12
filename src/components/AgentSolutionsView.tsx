@@ -575,11 +575,11 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
         {/* Category Filters */}
         <div className="flex flex-wrap items-center gap-1.5">
           {[
-            { id: 'all', label: 'Все материалы (13)' },
-            { id: 'electrical', label: 'Электромонтаж (5)' },
-            { id: 'mixes', label: 'Смеси и полы (2)' },
-            { id: 'plumbing', label: 'Сантехника и ОВК (2)' },
-            { id: 'insulation', label: 'Гидро- и шумоизоляция (2)' },
+            { id: 'all', label: `Все материалы (${dynamicMaterials.length})` },
+            { id: 'electrical', label: `Электромонтаж (${dynamicMaterials.filter(m => m.category === 'electrical').length})` },
+            { id: 'mixes', label: `Смеси и полы (${dynamicMaterials.filter(m => m.category === 'mixes').length})` },
+            { id: 'plumbing', label: `Сантехника и ОВК (${dynamicMaterials.filter(m => m.category === 'plumbing').length})` },
+            { id: 'insulation', label: `Изоляция (${dynamicMaterials.filter(m => m.category === 'insulation').length})` },
           ].map((cat) => (
             <button
               key={cat.id}
