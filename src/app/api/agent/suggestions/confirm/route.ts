@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     const result = executeConfirmSuggestionInDraft({
       idempotency_key: validated.idempotency_key,
-      suggestion: validated.suggestion,
+      suggestion_id: validated.suggestion_id,
       confirmed_by_human: true,
     });
 
@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       facts: result.updatedFacts,
       workbrief_draft: result.updatedDraft,
       audit_trace: result.auditTrace,
+      confirmed_suggestion_id: result.confirmedSuggestionId,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

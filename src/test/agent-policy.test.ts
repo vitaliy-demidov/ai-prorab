@@ -483,19 +483,22 @@ describe('AI Прораб — Инварианты безопасности Hack
       query: mainScenario,
       createDraft: true,
       idempotencyKey: key,
+      llmExtractor: async () => ({
+        city: 'Астана',
+        special_requests: ['Умный дом с голосовым управлением'],
+      }),
     });
     expect(initialRun.workbrief_draft?.revision).toBe(1);
     expect(initialRun.facts.special_requests).not.toContain('Умный дом с голосовым управлением');
 
-    // Пользователь подтверждает предложение модели через executeConfirmSuggestionInDraft
+    const sug = initialRun.model_suggestions.find((s) => s.field === 'special_request');
+    expect(sug).toBeDefined();
+    expect(sug?.suggestion_id).toBeDefined();
+
+    // Пользователь подтверждает зарегистрированное предложение модели по его ID
     const confirmResult = executeConfirmSuggestionInDraft({
       idempotency_key: key,
-      suggestion: {
-        field: 'special_request',
-        label: 'Пожелание по автоматизации',
-        proposed_value: 'Умный дом с голосовым управлением',
-        reason: 'Предложено моделью для удобства',
-      },
+      suggestion_id: sug!.suggestion_id,
       confirmed_by_human: true,
     });
 
@@ -560,33 +563,35 @@ describe('AI Прораб — Инварианты безопасности Hack
   // ТЕСТ 22: Утверждённый документ нельзя молча изменить
   it('22. Утверждённый документ нельзя молча изменить: новое изменение создаёт новую ревизию со статусом DRAFT_PENDING_APPROVAL', async () => {
     const key = `lock-approved-test-${Date.now()}`;
-    await AgentOrchestrator.run({
+    const initialRun = await AgentOrchestrator.run({
       query: mainScenario,
       createDraft: true,
       idempotencyKey: key,
+      llmExtractor: async () => ({
+        city: 'Астана',
+        target_timeline_months: 6, // В тексте 4, модель вернула 6 -> предложение
+      }),
     });
+
+    const sug = initialRun.model_suggestions.find((s) => s.field === 'target_timeline_months');
+    expect(sug).toBeDefined();
 
     // 1. Заказчик утверждает черновик ревизии 1
     const approved = approveWorkBriefDraft(key, 'Виталий (Заказчик)');
     expect(approved.status).toBe('APPROVED_BY_HUMAN');
     expect(approved.revision).toBe(1);
 
-    // 2. Поступает новое изменение (пользователь подтверждает новое предложение AI)
+    // 2. Поступает новое изменение (пользователь подтверждает зарегистрированное предложение AI)
     const afterChange = executeConfirmSuggestionInDraft({
       idempotency_key: key,
-      suggestion: {
-        field: 'target_timeline_months',
-        label: 'Желаемый срок въезда',
-        proposed_value: 5,
-        reason: 'Уточнение срока',
-      },
+      suggestion_id: sug!.suggestion_id,
       confirmed_by_human: true,
     });
 
     // 3. Статус ОБЯЗАН быть сброшен в DRAFT_PENDING_APPROVAL, а revision увеличиться до 2
     expect(afterChange.updatedDraft.status).toBe('DRAFT_PENDING_APPROVAL');
     expect(afterChange.updatedDraft.revision).toBe(2);
-    expect(afterChange.updatedFacts.target_timeline_months.value).toBe(5);
+    expect(afterChange.updatedFacts.target_timeline_months.value).toBe(6);
     expect(afterChange.updatedFacts.target_timeline_months.source).toBe('USER');
   });
 
@@ -612,6 +617,49 @@ describe('AI Прораб — Инварианты безопасности Hack
     expect(res2.workbrief_draft?.idempotency_key).toBe(key2);
     expect(res1.facts.city.value).toBe('Астана');
     expect(res2.facts.city.value).toBe('Алматы');
+  });
+
+  // ТЕСТ 24: Попытка подтвердить незарегистрированный suggestion_id отклоняется
+  it('24. Попытка подтвердить незарегистрированный suggestion_id отклоняется сервером', async () => {
+    const key = `unauthorized-sug-${Date.now()}`;
+    await AgentOrchestrator.run({
+      query: mainScenario,
+      createDraft: true,
+      idempotencyKey: key,
+    });
+
+    expect(() =>
+      executeConfirmSuggestionInDraft({
+        idempotency_key: key,
+        suggestion_id: 'fake-suggestion-id-12345',
+        confirmed_by_human: true,
+      })
+    ).toThrow('не найдено среди актуальных предложений');
+  });
+
+  // ТЕСТ 25: Значения вне допустимых диапазонов отклоняются
+  it('25. Значения вне допустимых диапазонов отклоняются санитарной проверкой (Sanity Bounds)', async () => {
+    const key = `bounds-sug-${Date.now()}`;
+    const run = await AgentOrchestrator.run({
+      query: mainScenario,
+      createDraft: true,
+      idempotencyKey: key,
+      llmExtractor: async () => ({
+        city: 'Астана',
+        target_timeline_months: 9999, // Заведомо нереалистичный срок
+      }),
+    });
+
+    const sug = run.model_suggestions.find((s) => s.field === 'target_timeline_months');
+    expect(sug).toBeDefined();
+
+    expect(() =>
+      executeConfirmSuggestionInDraft({
+        idempotency_key: key,
+        suggestion_id: sug!.suggestion_id,
+        confirmed_by_human: true,
+      })
+    ).toThrow('Недопустимый срок въезда');
   });
 });
 

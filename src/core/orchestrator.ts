@@ -16,7 +16,7 @@ import { executeIdentifyMissingFields } from './tools/identify-missing';
 import { executeRiskCheck } from './tools/risk-check';
 import { executeReadinessCheck } from './tools/readiness-check';
 import { executeProposeNextAction } from './tools/propose-action';
-import { executeCreateWorkBriefDraft } from './tools/create-draft';
+import { executeCreateWorkBriefDraft, registerPendingSuggestions } from './tools/create-draft';
 import { ConstructionPolicyGuard } from './policy/policy-guard';
 
 export interface RunAgentOptions {
@@ -340,6 +340,7 @@ export class AgentOrchestrator {
         assumptions: [],
         open_unknowns: unknownDescriptions,
         user_answers: userAnswers,
+        pending_suggestions: modelSuggestions,
       });
 
       workbrief_draft = draftResult.draft;
@@ -416,6 +417,7 @@ export class AgentOrchestrator {
         };
       } else {
         suggestions.push({
+          suggestion_id: `sug-city-${Math.random().toString(36).substring(2, 9)}`,
           field: 'city',
           label: 'Город объекта',
           proposed_value: llm.city,
@@ -446,6 +448,7 @@ export class AgentOrchestrator {
         };
       } else {
         suggestions.push({
+          suggestion_id: `sug-property_type-${Math.random().toString(36).substring(2, 9)}`,
           field: 'property_type',
           label: 'Тип и планировка',
           proposed_value: llm.property_type,
@@ -472,6 +475,7 @@ export class AgentOrchestrator {
         };
       } else {
         suggestions.push({
+          suggestion_id: `sug-area_sqm-${Math.random().toString(36).substring(2, 9)}`,
           field: 'area_sqm',
           label: 'Площадь объекта',
           proposed_value: `${llm.area_sqm} м²`,
@@ -507,6 +511,7 @@ export class AgentOrchestrator {
         };
       } else {
         suggestions.push({
+          suggestion_id: `sug-target_timeline_months-${Math.random().toString(36).substring(2, 9)}`,
           field: 'target_timeline_months',
           label: 'Желаемый срок въезда',
           proposed_value: `${llm.target_timeline_months} мес.`,
@@ -536,6 +541,7 @@ export class AgentOrchestrator {
           if (!isExactOrKnown) {
             // Модель семантически перефразировала («дорогой премиальный интерьер» вместо «современный ремонт»)
             suggestions.push({
+              suggestion_id: `sug-special_request-${Math.random().toString(36).substring(2, 9)}`,
               field: 'special_request',
               label: 'Интерпретация AI',
               proposed_value: text,
@@ -544,6 +550,7 @@ export class AgentOrchestrator {
           }
         } else {
           suggestions.push({
+            suggestion_id: `sug-special_request-${Math.random().toString(36).substring(2, 9)}`,
             field: 'special_request',
             label: 'Пожелание по дизайну',
             proposed_value: text,

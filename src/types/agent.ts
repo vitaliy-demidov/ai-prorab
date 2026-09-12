@@ -92,17 +92,27 @@ export interface PolicyNotice {
   user_warning: string;
 }
 
+export const SuggestionFieldSchema = z.enum([
+  'city',
+  'property_type',
+  'area_sqm',
+  'target_timeline_months',
+  'special_request',
+]);
+export type SuggestionField = z.infer<typeof SuggestionFieldSchema>;
+
 export const ModelSuggestionSchema = z.object({
-  field: z.string(),
-  label: z.string(),
-  proposed_value: z.union([z.string(), z.number()]),
-  reason: z.string(),
+  suggestion_id: z.string(),
+  field: SuggestionFieldSchema,
+  label: z.string().max(100),
+  proposed_value: z.union([z.string().max(500), z.number()]),
+  reason: z.string().max(500),
 });
 export type ModelSuggestion = z.infer<typeof ModelSuggestionSchema>;
 
 export const ConfirmSuggestionRequestSchema = z.object({
   idempotency_key: z.string(),
-  suggestion: ModelSuggestionSchema,
+  suggestion_id: z.string().min(3, 'Некорректный ID предложения'),
   confirmed_by_human: z.literal(true, {
     errorMap: () => ({ message: 'Требуется явное подтверждение человека' }),
   }),

@@ -55,7 +55,13 @@ export default function Home() {
   const [isApproving, setIsApproving] = useState(false);
   const [isHumanApproved, setIsHumanApproved] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [idempotencyKey, setIdempotencyKey] = useState<string>('session-key-1');
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return `session-${crypto.randomUUID()}`;
+    }
+    return `session-${Math.random().toString(36).substring(2, 11)}`;
+  });
 
   // Мгновенный запуск при открытии (результат виден жюри за 5 секунд)
   useEffect(() => {
@@ -70,6 +76,7 @@ export default function Home() {
   ) => {
     const keyToUse = explicitKey || idempotencyKey;
     setIsRunning(true);
+    setApiError(null);
     try {
       const res = await fetch('/api/agent', {
         method: 'POST',
@@ -82,24 +89,32 @@ export default function Home() {
         }),
       });
 
-      if (!res.ok) throw new Error('Ошибка обращения к API агента');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Ошибка обращения к API агента');
+      }
       const data: AgentRunResponse = await res.json();
       setAgentData(data);
       if (data.workbrief_draft) {
         setIsHumanApproved(data.workbrief_draft.status === 'APPROVED_BY_HUMAN');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Run agent error:', err);
+      setApiError(err.message || 'Ошибка анализа объекта');
     } finally {
       setIsRunning(false);
     }
   };
 
   const handleSelectPreset = (presetText: string) => {
-    const newKey = `preset-${Date.now()}`;
+    const uuid = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID().substring(0, 8) 
+      : Math.random().toString(36).substring(2, 8);
+    const newKey = `preset-${Date.now()}-${uuid}`;
     setQuery(presetText);
     setUserAnswers({});
     setIsHumanApproved(false);
+    setApiError(null);
     setIdempotencyKey(newKey);
     runAgentAnalysis(presetText, {}, newKey);
   };
@@ -113,6 +128,7 @@ export default function Home() {
   const handleApproveWorkBrief = async (signature: string) => {
     if (!agentData?.workbrief_draft) return;
     setIsApproving(true);
+    setApiError(null);
     try {
       const res = await fetch('/api/agent/approve', {
         method: 'POST',
@@ -124,25 +140,26 @@ export default function Home() {
         }),
       });
 
-      if (res.ok) {
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Ошибка утверждения WorkBrief');
+      }
+
+      const data = await res.json();
+      // Строгая синхронизация: используем approved_draft из ответа сервера
+      if (data.approved_draft) {
         setIsHumanApproved(true);
         setAgentData((prev) => {
-          if (!prev || !prev.workbrief_draft) return prev;
+          if (!prev) return prev;
           return {
             ...prev,
-            workbrief_draft: {
-              ...prev.workbrief_draft,
-              status: 'APPROVED_BY_HUMAN',
-              assumptions: [
-                ...prev.workbrief_draft.assumptions,
-                `Подтверждено заказчиком: ${signature}`,
-              ],
-            },
+            workbrief_draft: data.approved_draft,
           };
         });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Approve error:', e);
+      setApiError(e.message || 'Ошибка утверждения документа');
     } finally {
       setIsApproving(false);
     }
@@ -150,19 +167,22 @@ export default function Home() {
 
   const handleConfirmSuggestion = async (suggestion: ModelSuggestion) => {
     if (!agentData?.workbrief_draft) return;
+    setApiError(null);
     try {
       const res = await fetch('/api/agent/suggestions/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idempotency_key: idempotencyKey,
-          suggestion,
+          suggestion_id: suggestion.suggestion_id,
           confirmed_by_human: true,
         }),
       });
 
       if (!res.ok) {
-        const errJson = await res.json();
+        const errJson = await res.json().catch(() => ({}));
+        const errMsg = errJson.error || 'Не удалось подтвердить предложение';
+        setApiError(errMsg);
         console.error('Confirm suggestion failed:', errJson);
         return;
       }
@@ -171,7 +191,7 @@ export default function Home() {
       setAgentData((prev) => {
         if (!prev) return prev;
         const remainingSuggestions = prev.model_suggestions.filter(
-          (s) => s.field !== suggestion.field || s.proposed_value !== suggestion.proposed_value
+          (s) => s.suggestion_id !== suggestion.suggestion_id
         );
         return {
           ...prev,
@@ -186,8 +206,9 @@ export default function Home() {
       if (data.workbrief_draft) {
         setIsHumanApproved(data.workbrief_draft.status === 'APPROVED_BY_HUMAN');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Confirm suggestion error:', err);
+      setApiError(err.message || 'Ошибка подтверждения предложения');
     }
   };
 
@@ -197,7 +218,7 @@ export default function Home() {
       return {
         ...prev,
         model_suggestions: prev.model_suggestions.filter(
-          (s) => s.field !== suggestion.field || s.proposed_value !== suggestion.proposed_value
+          (s) => s.suggestion_id !== suggestion.suggestion_id
         ),
       };
     });
@@ -242,6 +263,23 @@ export default function Home() {
       />
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-5">
+        {/* ВИДИМЫЙ БАННЕР ОШИБКИ API */}
+        {apiError && (
+          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span className="font-medium">{apiError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setApiError(null)}
+              className="text-rose-500 hover:text-rose-800 text-xs font-semibold px-2 py-0.5 rounded cursor-pointer"
+            >
+              Закрыть
+            </button>
+          </div>
+        )}
+
         {/* HERO SECTION: ЗАПРОС СЛЕВА | «ЧТО АГЕНТ СДЕЛАЛ» СПРАВА */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
           {/* Слева: ввод и пресеты (7 колонок) */}

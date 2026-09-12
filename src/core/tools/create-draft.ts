@@ -7,11 +7,12 @@ export interface CreateDraftInput {
   assumptions: string[];
   open_unknowns: string[];
   user_answers?: Record<string, string>;
+  pending_suggestions?: ModelSuggestion[];
 }
 
 export interface ConfirmSuggestionInput {
   idempotency_key: string;
-  suggestion: ModelSuggestion;
+  suggestion_id: string;
   confirmed_by_human: true;
 }
 
@@ -19,17 +20,46 @@ export interface ConfirmSuggestionResult {
   updatedFacts: VerifiedFacts;
   updatedDraft: WorkBriefDraft;
   auditTrace: ToolExecutionTrace;
+  confirmedSuggestionId: string;
 }
 
-// Демонстрационный in-memory кэш (после рестарта сервера сбрасывается)
-const demoDraftCache = new Map<string, WorkBriefDraft>();
+// ==============================================================================
+// DEMO-ONLY STORAGE:
+// Для локального хакатона HackAlem используется in-memory хранилище.
+// Внимание: для публичного serverless-деплоя (Vercel/Cloudflare)
+// замените DEMO_IN_MEMORY_DRAFT_CACHE на Vercel KV / Redis / PostgreSQL,
+// либо используйте подписанный JWT-токен черновика (stateless session pattern).
+// ==============================================================================
+const DEMO_IN_MEMORY_DRAFT_CACHE = new Map<string, WorkBriefDraft>();
+const DEMO_IN_MEMORY_PENDING_SUGGESTIONS = new Map<string, Map<string, ModelSuggestion>>();
 
 export function clearDraftCacheForTests(): void {
-  demoDraftCache.clear();
+  DEMO_IN_MEMORY_DRAFT_CACHE.clear();
+  DEMO_IN_MEMORY_PENDING_SUGGESTIONS.clear();
+}
+
+export function registerPendingSuggestions(idempotency_key: string, suggestions: ModelSuggestion[]): void {
+  let sessionMap = DEMO_IN_MEMORY_PENDING_SUGGESTIONS.get(idempotency_key);
+  if (!sessionMap) {
+    sessionMap = new Map<string, ModelSuggestion>();
+    DEMO_IN_MEMORY_PENDING_SUGGESTIONS.set(idempotency_key, sessionMap);
+  }
+  for (const s of suggestions) {
+    sessionMap.set(s.suggestion_id, s);
+  }
+}
+
+export function getPendingSuggestions(idempotency_key: string): ModelSuggestion[] {
+  const sessionMap = DEMO_IN_MEMORY_PENDING_SUGGESTIONS.get(idempotency_key);
+  return sessionMap ? Array.from(sessionMap.values()) : [];
 }
 
 export function executeCreateWorkBriefDraft(input: CreateDraftInput): { draft: WorkBriefDraft; cached: boolean } {
-  const { idempotency_key, facts, assumptions, open_unknowns, user_answers } = input;
+  const { idempotency_key, facts, assumptions, open_unknowns, user_answers, pending_suggestions } = input;
+
+  if (pending_suggestions && pending_suggestions.length > 0) {
+    registerPendingSuggestions(idempotency_key, pending_suggestions);
+  }
 
   // Защита от попыток передать цену
   const safetyCheck = ConstructionPolicyGuard.validatePriceSafety(facts);
@@ -62,8 +92,8 @@ export function executeCreateWorkBriefDraft(input: CreateDraftInput): { draft: W
   const title = `Черновик WorkBrief: ${typeVal}, г. ${cityVal} ${areaVal}`.trim();
 
   // Идемпотентность и версионирование при повторном анализе
-  if (demoDraftCache.has(idempotency_key)) {
-    const existingDraft = demoDraftCache.get(idempotency_key)!;
+  if (DEMO_IN_MEMORY_DRAFT_CACHE.has(idempotency_key)) {
+    const existingDraft = DEMO_IN_MEMORY_DRAFT_CACHE.get(idempotency_key)!;
 
     // Извлечение ответов пользователя из допущений для сравнения
     const prevAnswers = existingDraft.assumptions.filter((a) => a.startsWith('Уточнение заказчика'));
@@ -94,7 +124,7 @@ export function executeCreateWorkBriefDraft(input: CreateDraftInput): { draft: W
       cached: false,
     };
 
-    demoDraftCache.set(idempotency_key, updatedDraft);
+    DEMO_IN_MEMORY_DRAFT_CACHE.set(idempotency_key, updatedDraft);
     return { draft: updatedDraft, cached: false };
   }
 
@@ -116,17 +146,17 @@ export function executeCreateWorkBriefDraft(input: CreateDraftInput): { draft: W
     cached: false,
   };
 
-  demoDraftCache.set(idempotency_key, draft);
+  DEMO_IN_MEMORY_DRAFT_CACHE.set(idempotency_key, draft);
 
   return { draft, cached: false };
 }
 
 export function getCachedDraft(idempotency_key: string): WorkBriefDraft | null {
-  return demoDraftCache.get(idempotency_key) || null;
+  return DEMO_IN_MEMORY_DRAFT_CACHE.get(idempotency_key) || null;
 }
 
 export function approveWorkBriefDraft(idempotency_key: string, userSignature: string): WorkBriefDraft {
-  const draft = demoDraftCache.get(idempotency_key);
+  const draft = DEMO_IN_MEMORY_DRAFT_CACHE.get(idempotency_key);
   if (!draft) {
     throw new Error(`Черновик с ключом ${idempotency_key} не найден в демо-кэше.`);
   }
@@ -138,15 +168,22 @@ export function approveWorkBriefDraft(idempotency_key: string, userSignature: st
     assumptions: [...draft.assumptions, `Подтверждено заказчиком (ревизия v${draft.revision || 1}): ${userSignature}`],
   };
 
-  demoDraftCache.set(idempotency_key, approvedDraft);
+  DEMO_IN_MEMORY_DRAFT_CACHE.set(idempotency_key, approvedDraft);
   return approvedDraft;
 }
 
 export function executeConfirmSuggestionInDraft(input: ConfirmSuggestionInput): ConfirmSuggestionResult {
-  const { idempotency_key, suggestion, confirmed_by_human } = input;
+  const { idempotency_key, suggestion_id, confirmed_by_human } = input;
 
   if (!confirmed_by_human) {
     throw new Error('Подтверждение предложения требует confirmed_by_human: true');
+  }
+
+  const sessionSuggestions = DEMO_IN_MEMORY_PENDING_SUGGESTIONS.get(idempotency_key);
+  const suggestion = sessionSuggestions?.get(suggestion_id);
+
+  if (!suggestion) {
+    throw new Error(`Предложение с ID "${suggestion_id}" не найдено среди актуальных предложений для сессии "${idempotency_key}".`);
   }
 
   // Проверка через Policy Guard
@@ -155,15 +192,44 @@ export function executeConfirmSuggestionInDraft(input: ConfirmSuggestionInput): 
     throw new Error(priceSafety.notice?.message || 'Попытка зафиксировать стоимость отклонена политикой безопасности');
   }
 
-  const currentDraft = demoDraftCache.get(idempotency_key);
+  // Валидация разумных границ значений (Sanity Bounds)
+  const field = suggestion.field;
+  const val = suggestion.proposed_value;
+
+  if (field === 'area_sqm') {
+    const num = typeof val === 'number' ? val : parseFloat(String(val));
+    if (isNaN(num) || num < 5 || num > 10000) {
+      throw new Error(`Недопустимое значение площади: ${val}. Допустимый диапазон от 5 до 10 000 м².`);
+    }
+  } else if (field === 'target_timeline_months') {
+    const num = typeof val === 'number' ? val : parseInt(String(val), 10);
+    if (isNaN(num) || num < 1 || num > 120) {
+      throw new Error(`Недопустимый срок въезда: ${val}. Допустимый диапазон от 1 до 120 месяцев.`);
+    }
+  } else if (field === 'city') {
+    const str = String(val).trim();
+    if (str.length < 2 || str.length > 100) {
+      throw new Error('Название города должно содержать от 2 до 100 символов.');
+    }
+  } else if (field === 'property_type') {
+    const str = String(val).trim();
+    if (str.length < 2 || str.length > 100) {
+      throw new Error('Тип объекта должен содержать от 2 до 100 символов.');
+    }
+  } else if (field === 'special_request') {
+    const str = String(val).trim();
+    if (str.length < 2 || str.length > 500) {
+      throw new Error('Пожелание заказчика должно содержать от 2 до 500 символов.');
+    }
+  }
+
+  const currentDraft = DEMO_IN_MEMORY_DRAFT_CACHE.get(idempotency_key);
   if (!currentDraft) {
     throw new Error(`Черновик с ключом ${idempotency_key} не найден. Сначала выполните анализ объекта.`);
   }
 
   // Обновление VerifiedFacts на сервере с присвоением source: 'USER'
   const updatedFacts: VerifiedFacts = JSON.parse(JSON.stringify(currentDraft.facts));
-  const field = suggestion.field;
-  const val = suggestion.proposed_value;
 
   if (field === 'special_request') {
     const strVal = String(val).trim();
@@ -172,13 +238,11 @@ export function executeConfirmSuggestionInDraft(input: ConfirmSuggestionInput): 
     }
   } else if (field === 'target_timeline_months') {
     const num = typeof val === 'number' ? val : parseInt(String(val), 10);
-    if (!isNaN(num)) {
-      updatedFacts.target_timeline_months = {
-        value: num,
-        label: suggestion.label || 'Желаемый срок въезда',
-        source: 'USER',
-      };
-    }
+    updatedFacts.target_timeline_months = {
+      value: num,
+      label: suggestion.label || 'Желаемый срок въезда',
+      source: 'USER',
+    };
   } else if (field === 'city') {
     updatedFacts.city = {
       value: String(val).trim(),
@@ -193,13 +257,11 @@ export function executeConfirmSuggestionInDraft(input: ConfirmSuggestionInput): 
     };
   } else if (field === 'area_sqm') {
     const num = typeof val === 'number' ? val : parseFloat(String(val));
-    if (!isNaN(num)) {
-      updatedFacts.area_sqm = {
-        value: num,
-        label: suggestion.label || 'Площадь из сообщения',
-        source: 'USER',
-      };
-    }
+    updatedFacts.area_sqm = {
+      value: num,
+      label: suggestion.label || 'Площадь из сообщения',
+      source: 'USER',
+    };
   }
 
   // Обновляем допущения черновика
@@ -228,16 +290,20 @@ export function executeConfirmSuggestionInDraft(input: ConfirmSuggestionInput): 
     cached: false,
   };
 
-  demoDraftCache.set(idempotency_key, updatedDraft);
+  DEMO_IN_MEMORY_DRAFT_CACHE.set(idempotency_key, updatedDraft);
+
+  // Удаляем подтвержденное предложение из реестра актуальных предложений
+  sessionSuggestions?.delete(suggestion_id);
 
   const auditTrace: ToolExecutionTrace = {
     step: 7,
     tool_name: 'confirm_model_suggestion',
-    description: `Пользователь явно подтвердил AI-предложение: ${suggestion.label} = ${val}`,
+    description: `Пользователь явно подтвердил AI-предложение (${suggestion_id}): ${suggestion.label} = ${val}`,
     timestamp: new Date().toISOString(),
     status: 'SUCCESS',
     input_summary: {
       idempotency_key,
+      suggestion_id,
       field: suggestion.field,
       proposed_value: suggestion.proposed_value,
       confirmed_by_human: true,
@@ -254,6 +320,8 @@ export function executeConfirmSuggestionInDraft(input: ConfirmSuggestionInput): 
     updatedFacts,
     updatedDraft,
     auditTrace,
+    confirmedSuggestionId: suggestion_id,
   };
 }
+
 
