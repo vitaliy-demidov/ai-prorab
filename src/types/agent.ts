@@ -59,6 +59,7 @@ export type PipelineStage = z.infer<typeof PipelineStageSchema>;
 export const WorkBriefDraftSchema = z.object({
   idempotency_key: z.string(),
   brief_id: z.string(),
+  revision: z.number().default(1),
   created_at: z.string(),
   title: z.string(),
   status: z.enum(['DRAFT_PENDING_APPROVAL', 'APPROVED_BY_HUMAN']),
@@ -98,6 +99,15 @@ export const ModelSuggestionSchema = z.object({
   reason: z.string(),
 });
 export type ModelSuggestion = z.infer<typeof ModelSuggestionSchema>;
+
+export const ConfirmSuggestionRequestSchema = z.object({
+  idempotency_key: z.string(),
+  suggestion: ModelSuggestionSchema,
+  confirmed_by_human: z.literal(true, {
+    errorMap: () => ({ message: 'Требуется явное подтверждение человека' }),
+  }),
+});
+export type ConfirmSuggestionRequest = z.infer<typeof ConfirmSuggestionRequestSchema>;
 
 // Схема структурированного JSON для Hybrid AI (LLM-адаптер) с evidence spans
 export const HybridExtractionSchema = z.object({

@@ -63,7 +63,12 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const runAgentAnalysis = async (textToRun: string, currentAnswers: Record<string, string>) => {
+  const runAgentAnalysis = async (
+    textToRun: string,
+    currentAnswers: Record<string, string>,
+    explicitKey?: string
+  ) => {
+    const keyToUse = explicitKey || idempotencyKey;
     setIsRunning(true);
     try {
       const res = await fetch('/api/agent', {
@@ -72,7 +77,7 @@ export default function Home() {
         body: JSON.stringify({
           query: textToRun,
           createDraft: true,
-          idempotencyKey,
+          idempotencyKey: keyToUse,
           userAnswers: currentAnswers,
         }),
       });
@@ -80,6 +85,9 @@ export default function Home() {
       if (!res.ok) throw new Error('Ошибка обращения к API агента');
       const data: AgentRunResponse = await res.json();
       setAgentData(data);
+      if (data.workbrief_draft) {
+        setIsHumanApproved(data.workbrief_draft.status === 'APPROVED_BY_HUMAN');
+      }
     } catch (err) {
       console.error('Run agent error:', err);
     } finally {
@@ -88,17 +96,18 @@ export default function Home() {
   };
 
   const handleSelectPreset = (presetText: string) => {
+    const newKey = `preset-${Date.now()}`;
     setQuery(presetText);
     setUserAnswers({});
     setIsHumanApproved(false);
-    setIdempotencyKey(`preset-${Date.now()}`);
-    runAgentAnalysis(presetText, {});
+    setIdempotencyKey(newKey);
+    runAgentAnalysis(presetText, {}, newKey);
   };
 
   const handleAnswerQuestion = (questionId: string, answer: string) => {
     const updated = { ...userAnswers, [questionId]: answer };
     setUserAnswers(updated);
-    runAgentAnalysis(query, updated);
+    runAgentAnalysis(query, updated, idempotencyKey);
   };
 
   const handleApproveWorkBrief = async (signature: string) => {
@@ -139,55 +148,47 @@ export default function Home() {
     }
   };
 
-  const handleConfirmSuggestion = (suggestion: ModelSuggestion) => {
-    setAgentData((prev) => {
-      if (!prev) return prev;
-      const updatedSuggestions = prev.model_suggestions.filter((s) => s !== suggestion);
-      const updatedFacts = { ...prev.facts };
+  const handleConfirmSuggestion = async (suggestion: ModelSuggestion) => {
+    if (!agentData?.workbrief_draft) return;
+    try {
+      const res = await fetch('/api/agent/suggestions/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idempotency_key: idempotencyKey,
+          suggestion,
+          confirmed_by_human: true,
+        }),
+      });
 
-      if (suggestion.field === 'special_request') {
-        const valStr = String(suggestion.proposed_value);
-        if (!updatedFacts.special_requests.includes(valStr)) {
-          updatedFacts.special_requests = [...updatedFacts.special_requests, valStr];
-        }
-      } else if (suggestion.field === 'target_timeline_months') {
-        const num = typeof suggestion.proposed_value === 'number'
-          ? suggestion.proposed_value
-          : parseInt(String(suggestion.proposed_value), 10) || null;
-        updatedFacts.target_timeline_months = {
-          value: num,
-          label: suggestion.label,
-          source: 'USER',
-        };
-      } else if (suggestion.field === 'city') {
-        updatedFacts.city = {
-          value: String(suggestion.proposed_value),
-          label: suggestion.label,
-          source: 'USER',
-        };
-      } else if (suggestion.field === 'property_type') {
-        updatedFacts.property_type = {
-          value: String(suggestion.proposed_value),
-          label: suggestion.label,
-          source: 'USER',
-        };
-      } else if (suggestion.field === 'area_sqm') {
-        const num = typeof suggestion.proposed_value === 'number'
-          ? suggestion.proposed_value
-          : parseFloat(String(suggestion.proposed_value)) || null;
-        updatedFacts.area_sqm = {
-          value: num,
-          label: suggestion.label,
-          source: 'USER',
-        };
+      if (!res.ok) {
+        const errJson = await res.json();
+        console.error('Confirm suggestion failed:', errJson);
+        return;
       }
 
-      return {
-        ...prev,
-        facts: updatedFacts,
-        model_suggestions: updatedSuggestions,
-      };
-    });
+      const data = await res.json();
+      setAgentData((prev) => {
+        if (!prev) return prev;
+        const remainingSuggestions = prev.model_suggestions.filter(
+          (s) => s.field !== suggestion.field || s.proposed_value !== suggestion.proposed_value
+        );
+        return {
+          ...prev,
+          facts: data.facts,
+          workbrief_draft: data.workbrief_draft,
+          model_suggestions: remainingSuggestions,
+          tool_traces: [...prev.tool_traces, data.audit_trace],
+        };
+      });
+
+      // Синхронизируем статус подтверждения человека с ревизией драфта
+      if (data.workbrief_draft) {
+        setIsHumanApproved(data.workbrief_draft.status === 'APPROVED_BY_HUMAN');
+      }
+    } catch (err) {
+      console.error('Confirm suggestion error:', err);
+    }
   };
 
   const handleDismissSuggestion = (suggestion: ModelSuggestion) => {
@@ -195,7 +196,9 @@ export default function Home() {
       if (!prev) return prev;
       return {
         ...prev,
-        model_suggestions: prev.model_suggestions.filter((s) => s !== suggestion),
+        model_suggestions: prev.model_suggestions.filter(
+          (s) => s.field !== suggestion.field || s.proposed_value !== suggestion.proposed_value
+        ),
       };
     });
   };

@@ -32,7 +32,7 @@ export const FactsMatrix: React.FC<FactsMatrixProps> = ({
               </h3>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
-              Исключительно из сообщения
+              Подтверждено пользователем
             </span>
           </div>
 

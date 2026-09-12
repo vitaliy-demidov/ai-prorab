@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { executeExtractBrief } from '@/core/tools/extract-brief';
 import { executeIdentifyMissingFields } from '@/core/tools/identify-missing';
 import { ConstructionPolicyGuard } from '@/core/policy/policy-guard';
-import { executeCreateWorkBriefDraft, approveWorkBriefDraft } from '@/core/tools/create-draft';
+import { 
+  executeCreateWorkBriefDraft, 
+  approveWorkBriefDraft, 
+  executeConfirmSuggestionInDraft, 
+  getCachedDraft, 
+  clearDraftCacheForTests 
+} from '@/core/tools/create-draft';
 import { AgentOrchestrator } from '@/core/orchestrator';
 
 describe('AI Прораб — Инварианты безопасности HackAlem', () => {
@@ -469,5 +475,144 @@ describe('AI Прораб — Инварианты безопасности Hack
     expect(styleSuggestion?.proposed_value).toBe('дорогой премиальный интерьер');
     expect(styleSuggestion?.reason).toContain('Свободная перефразировка модели');
   });
+
+  // ТЕСТ 19: Подтверждение предложения обновляет WorkBrief на сервере
+  it('19. Серверное подтверждение предложения обновляет facts (source: USER) и WorkBrief, увеличивая revision', async () => {
+    const key = `confirm-test-${Date.now()}`;
+    const initialRun = await AgentOrchestrator.run({
+      query: mainScenario,
+      createDraft: true,
+      idempotencyKey: key,
+    });
+    expect(initialRun.workbrief_draft?.revision).toBe(1);
+    expect(initialRun.facts.special_requests).not.toContain('Умный дом с голосовым управлением');
+
+    // Пользователь подтверждает предложение модели через executeConfirmSuggestionInDraft
+    const confirmResult = executeConfirmSuggestionInDraft({
+      idempotency_key: key,
+      suggestion: {
+        field: 'special_request',
+        label: 'Пожелание по автоматизации',
+        proposed_value: 'Умный дом с голосовым управлением',
+        reason: 'Предложено моделью для удобства',
+      },
+      confirmed_by_human: true,
+    });
+
+    // 1. Facts обновлены на сервере с source: USER
+    expect(confirmResult.updatedFacts.special_requests).toContain('Умный дом с голосовым управлением');
+
+    // 2. Draft в кэше обновлен и инкрементировал revision
+    const cached = getCachedDraft(key);
+    expect(cached?.revision).toBe(2);
+    expect(cached?.facts.special_requests).toContain('Умный дом с голосовым управлением');
+    expect(cached?.assumptions.some((a) => a.includes('Умный дом с голосовым управлением'))).toBe(true);
+
+    // 3. Сформирован audit trace
+    expect(confirmResult.auditTrace.tool_name).toBe('confirm_model_suggestion');
+    expect(confirmResult.auditTrace.status).toBe('SUCCESS');
+    expect(confirmResult.auditTrace.policy_decision).toContain('HUMAN_CONFIRMED');
+  });
+
+  // ТЕСТ 20: Отклонение предложения не изменяет facts и WorkBrief на сервере
+  it('20. Отклонение предложения не изменяет facts и WorkBrief на сервере', async () => {
+    const key = `dismiss-test-${Date.now()}`;
+    const initialRun = await AgentOrchestrator.run({
+      query: mainScenario,
+      createDraft: true,
+      idempotencyKey: key,
+    });
+
+    const initialDraft = getCachedDraft(key);
+    expect(initialDraft?.revision).toBe(1);
+
+    // Отклонение происходит исключительно на клиенте (удаление из списка предложений)
+    // Серверное состояние не меняется
+    const draftAfterDismiss = getCachedDraft(key);
+    expect(draftAfterDismiss?.revision).toBe(1);
+    expect(JSON.stringify(draftAfterDismiss?.facts)).toBe(JSON.stringify(initialRun.facts));
+  });
+
+  // ТЕСТ 21: Повторный ответ создаёт новую revision черновика
+  it('21. Повторный ответ на вопрос (user_answers) обновляет черновик и создаёт новую revision', async () => {
+    const key = `answers-revision-test-${Date.now()}`;
+    const run1 = await AgentOrchestrator.run({
+      query: mainScenario,
+      createDraft: true,
+      idempotencyKey: key,
+      userAnswers: {},
+    });
+    expect(run1.workbrief_draft?.revision).toBe(1);
+
+    // Пользователь отвечает на вопрос
+    const run2 = await AgentOrchestrator.run({
+      query: mainScenario,
+      createDraft: true,
+      idempotencyKey: key,
+      userAnswers: { q_state: 'Черновая отделка от застройщика' },
+    });
+
+    expect(run2.workbrief_draft?.revision).toBe(2);
+    expect(run2.workbrief_draft?.cached).toBe(false);
+    expect(run2.workbrief_draft?.assumptions.some((a) => a.includes('Черновая отделка от застройщика'))).toBe(true);
+  });
+
+  // ТЕСТ 22: Утверждённый документ нельзя молча изменить
+  it('22. Утверждённый документ нельзя молча изменить: новое изменение создаёт новую ревизию со статусом DRAFT_PENDING_APPROVAL', async () => {
+    const key = `lock-approved-test-${Date.now()}`;
+    await AgentOrchestrator.run({
+      query: mainScenario,
+      createDraft: true,
+      idempotencyKey: key,
+    });
+
+    // 1. Заказчик утверждает черновик ревизии 1
+    const approved = approveWorkBriefDraft(key, 'Виталий (Заказчик)');
+    expect(approved.status).toBe('APPROVED_BY_HUMAN');
+    expect(approved.revision).toBe(1);
+
+    // 2. Поступает новое изменение (пользователь подтверждает новое предложение AI)
+    const afterChange = executeConfirmSuggestionInDraft({
+      idempotency_key: key,
+      suggestion: {
+        field: 'target_timeline_months',
+        label: 'Желаемый срок въезда',
+        proposed_value: 5,
+        reason: 'Уточнение срока',
+      },
+      confirmed_by_human: true,
+    });
+
+    // 3. Статус ОБЯЗАН быть сброшен в DRAFT_PENDING_APPROVAL, а revision увеличиться до 2
+    expect(afterChange.updatedDraft.status).toBe('DRAFT_PENDING_APPROVAL');
+    expect(afterChange.updatedDraft.revision).toBe(2);
+    expect(afterChange.updatedFacts.target_timeline_months.value).toBe(5);
+    expect(afterChange.updatedFacts.target_timeline_months.source).toBe('USER');
+  });
+
+  // ТЕСТ 23: Выбор пресета использует новый ключ
+  it('23. Выбор пресета генерирует новый idempotencyKey и создаёт независимый изолированный черновик', async () => {
+    const key1 = `preset-1-${Date.now()}`;
+    const key2 = `preset-2-${Date.now() + 10}`;
+
+    const res1 = await AgentOrchestrator.run({
+      query: 'Купил двухкомнатную квартиру в Астане, 58 м²',
+      createDraft: true,
+      idempotencyKey: key1,
+    });
+
+    const res2 = await AgentOrchestrator.run({
+      query: 'Квартира 82 м² в Алматы, отделка предчистовая White Box',
+      createDraft: true,
+      idempotencyKey: key2,
+    });
+
+    expect(res1.workbrief_draft?.brief_id).not.toBe(res2.workbrief_draft?.brief_id);
+    expect(res1.workbrief_draft?.idempotency_key).toBe(key1);
+    expect(res2.workbrief_draft?.idempotency_key).toBe(key2);
+    expect(res1.facts.city.value).toBe('Астана');
+    expect(res2.facts.city.value).toBe('Алматы');
+  });
 });
+
 
