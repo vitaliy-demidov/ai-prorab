@@ -65,6 +65,7 @@ interface AgentSolutionsViewProps {
   marketMaterials?: MarketScrapedItem[];
   projectBlueprints?: ProjectBlueprint[];
   specializedStages?: SpecializedAgentStage[];
+  city?: string;
   onOpenWorkBrief?: () => void;
 }
 
@@ -77,6 +78,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
   marketMaterials: propMarketMaterials,
   projectBlueprints: propProjectBlueprints,
   specializedStages: propSpecializedStages,
+  city = 'Астана',
   onOpenWorkBrief,
 }) => {
   // Active Project Blueprint: 'proj-base' | 'proj-optimal' | 'proj-premium'
@@ -166,8 +168,8 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
 
   // Specialized Agent Stages
   const dynamicAgentStages = useMemo(() => {
-    return generateSpecializedAgentStages(interactiveArea, 'Астана');
-  }, [interactiveArea]);
+    return generateSpecializedAgentStages(interactiveArea, city);
+  }, [interactiveArea, city]);
 
   const activeStage = useMemo(() => {
     return dynamicAgentStages.find((s) => s.agentNumber === selectedAgentStage) || dynamicAgentStages[1];
@@ -222,7 +224,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
                 Единый итоговый вердикт по объекту
               </span>
               <span className="text-xs font-mono text-slate-400 bg-white/[0.05] px-2.5 py-1 rounded-full border border-white/[0.08]">
-                Астана · {interactiveArea} м² · 5 Агентов в контуре
+                {city} · {interactiveArea} м² · 5 Агентов в контуре
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -361,7 +363,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
           <ArchitecturalFloorPlan
             areaSqm={interactiveArea}
             renovationType={interactiveType}
-            city="Астана"
+            city={city}
           />
         )}
 
@@ -504,7 +506,7 @@ export const AgentSolutionsView: React.FC<AgentSolutionsViewProps> = ({
           <ArchitecturalFloorPlan
             areaSqm={interactiveArea}
             renovationType={interactiveType}
-            city="Астана"
+            city={city}
           />
         </div>
       )}
