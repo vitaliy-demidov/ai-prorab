@@ -163,7 +163,10 @@ import type {
   EngineeringSolution,
   WorkBreakdownStage,
   AgentLoopStep,
-  SkepticVerdict
+  SkepticVerdict,
+  MarketScrapedItem,
+  ProjectBlueprint,
+  SpecializedAgentStage
 } from '@/core/tools/engineering-engine';
 
 export interface AgentRunResponse {
@@ -196,4 +199,7 @@ export interface AgentRunResponse {
   work_breakdown?: WorkBreakdownStage[];
   agent_loop_steps?: AgentLoopStep[];
   skeptic_verdicts?: SkepticVerdict[];
+  market_materials?: MarketScrapedItem[];
+  project_blueprints?: ProjectBlueprint[];
+  specialized_agent_stages?: SpecializedAgentStage[];
 }

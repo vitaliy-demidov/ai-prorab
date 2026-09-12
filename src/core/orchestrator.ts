@@ -23,7 +23,10 @@ import {
   generateEngineeringSolutions, 
   generateWorkBreakdown, 
   generateAgentLoopSteps,
-  generateSkepticVerdicts
+  generateSkepticVerdicts,
+  generateMarketScrapedMaterials,
+  generateProjectBlueprints,
+  generateSpecializedAgentStages
 } from './tools/engineering-engine';
 
 export interface RunAgentOptions {
@@ -377,6 +380,9 @@ export class AgentOrchestrator {
     const work_breakdown = generateWorkBreakdown(areaNum);
     const agent_loop_steps = generateAgentLoopSteps(areaNum, cityStr);
     const skeptic_verdicts = generateSkepticVerdicts(areaNum, propertyTypeStr);
+    const market_materials = generateMarketScrapedMaterials(areaNum, 'optimal');
+    const project_blueprints = generateProjectBlueprints(areaNum);
+    const specialized_agent_stages = generateSpecializedAgentStages(areaNum, cityStr);
 
     return {
       query,
@@ -398,6 +404,9 @@ export class AgentOrchestrator {
       work_breakdown,
       agent_loop_steps,
       skeptic_verdicts,
+      market_materials,
+      project_blueprints,
+      specialized_agent_stages,
     };
   }
 

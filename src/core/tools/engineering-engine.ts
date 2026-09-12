@@ -63,6 +63,69 @@ export interface SkepticVerdict {
   status: 'TRAP_NEUTRALIZED';
 }
 
+export interface MarketScrapedItem {
+  id: string;
+  name: string;
+  brand: string;
+  category: 'electrical' | 'mixes' | 'plumbing' | 'insulation';
+  categoryLabel: string;
+  storeName: '12 Месяцев' | 'Kaspi Магазин' | 'Строймарт' | 'Лемана ПРО';
+  storeUrl: string;
+  storeLogoCode: '12m' | 'kaspi' | 'stroymart' | 'lemana';
+  unit: string;
+  unitPriceKzt: number;
+  requiredQty: number;
+  totalCostKzt: number;
+  sku: string;
+  inStock: boolean;
+  packageTier: 'all' | 'base' | 'optimal' | 'premium';
+  specification: string;
+  scrapedStatus: string;
+}
+
+export interface ProjectBlueprint {
+  id: 'proj-base' | 'proj-optimal' | 'proj-premium';
+  name: string;
+  tagline: string;
+  badge: string;
+  badgeColor: string;
+  isRecommended: boolean;
+  totalCostKzt: number;
+  materialsCostKzt: number;
+  laborCostKzt: number;
+  costPerSqmKzt: number;
+  timelineDays: number;
+  warrantyMonths: number;
+  roomsLayout: string;
+  architecturalSummary: string;
+  keyFeatures: string[];
+  materialsHighlights: string[];
+  riskDefenseSummary: string;
+  preventedRiskKzt: number;
+  suitableFor: string;
+}
+
+export interface SpecializedAgentStage {
+  id: string;
+  agentNumber: number;
+  agentCode: string;
+  agentName: string;
+  agentRole: string;
+  avatarIcon: string;
+  avatarBg: string;
+  stageTitle: string;
+  whatStudied: string;
+  whatSolved: string;
+  deliverableTitle: string;
+  deliverableValue: string;
+  links: {
+    label: string;
+    url: string;
+    type: 'law' | 'store' | 'standard';
+  }[];
+  status: 'COMPLETED' | 'IN_PROGRESS';
+}
+
 export function calculateConstructionQuantities(
   areaSqm: number,
   ceilingHeightM: number = 2.7,
@@ -379,6 +442,503 @@ export function generateSkepticVerdicts(areaSqm: number, propertyType: string): 
       regulatoryUrl: 'https://adilet.zan.kz/rus/docs/Z970000094_',
       riskAmountKzt: 1800000,
       status: 'TRAP_NEUTRALIZED',
+    },
+  ];
+}
+
+export function generateMarketScrapedMaterials(
+  areaSqm: number,
+  selectedTier: 'all' | 'base' | 'optimal' | 'premium' = 'optimal'
+): MarketScrapedItem[] {
+  const area = areaSqm && areaSqm > 0 ? areaSqm : 58;
+  const quantities = calculateConstructionQuantities(area);
+
+  // Кабель ВВГнг-LS 3х2.5 на розетки
+  const cable3x25Qty = quantities.cable_length_m;
+  // Кабель 3х1.5 на свет
+  const cable3x15Qty = Math.round(area * 3.1);
+  // Кабель 3х6 на варочную
+  const cable3x6Qty = 25;
+  // Наливной пол мешки (25 кг): при 15 мм расходе ~1.7 кг/м²/мм
+  const screedBags = Math.max(20, Math.round((area * 15 * 1.7) / 25));
+  // Штукатурка Rotband мешки (30 кг)
+  const plasterBags = Math.max(15, Math.round((quantities.wall_area_sqm * 8.5) / 30));
+  // Гидроизоляция Knauf ведра (5 кг)
+  const waterproofingBuckets = Math.max(2, Math.ceil((quantities.wet_zones_sqm * 1.4) / 5));
+  // Труба Rehau Stabil метры
+  const rehauPipeM = Math.max(30, Math.round(area * 1.15));
+
+  const allItems: MarketScrapedItem[] = [
+    {
+      id: 'mat-cab-1',
+      name: 'Кабель силовой ВВГнг-LS 3х2.5 мм² ГОСТ 31996-2012',
+      brand: 'Казэнергокабель / РЭК',
+      category: 'electrical',
+      categoryLabel: 'Электромонтаж',
+      storeName: '12 Месяцев',
+      storeUrl: 'https://www.12months.kz/catalog/kabel-i-provod-vvgng-ls/',
+      storeLogoCode: '12m',
+      unit: 'м.п.',
+      unitPriceKzt: 580,
+      requiredQty: cable3x25Qty,
+      totalCostKzt: cable3x25Qty * 580,
+      sku: '12M-CAB-325-KZ',
+      inStock: true,
+      packageTier: 'all',
+      specification: 'Медный негорючий с низким дымовыделением ГОСТ. Для розеточных сетей.',
+      scrapedStatus: 'В наличии (склад Астана, пр. Богенбай Батыра)',
+    },
+    {
+      id: 'mat-cab-2',
+      name: 'Кабель силовой ВВГнг-LS 3х1.5 мм² ГОСТ 31996-2012',
+      brand: 'Казэнергокабель',
+      category: 'electrical',
+      categoryLabel: 'Электромонтаж',
+      storeName: '12 Месяцев',
+      storeUrl: 'https://www.12months.kz/catalog/kabel-i-provod-vvgng-ls/',
+      storeLogoCode: '12m',
+      unit: 'м.п.',
+      unitPriceKzt: 390,
+      requiredQty: cable3x15Qty,
+      totalCostKzt: cable3x15Qty * 390,
+      sku: '12M-CAB-315-KZ',
+      inStock: true,
+      packageTier: 'all',
+      specification: 'Для выделенных линий светодиодного и трекового освещения.',
+      scrapedStatus: 'В наличии (склад Астана)',
+    },
+    {
+      id: 'mat-cab-3',
+      name: 'Кабель силовой ВВГнг-LS 3х6.0 мм² ГОСТ (для варочной панели)',
+      brand: 'РЭК',
+      category: 'electrical',
+      categoryLabel: 'Электромонтаж',
+      storeName: 'Kaspi Магазин',
+      storeUrl: 'https://kaspi.kz/shop/c/cables/',
+      storeLogoCode: 'kaspi',
+      unit: 'м.п.',
+      unitPriceKzt: 1450,
+      requiredQty: cable3x6Qty,
+      totalCostKzt: cable3x6Qty * 1450,
+      sku: 'KSP-CAB-360-KZ',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Тяжелый силовой ввод до 8.5 кВт без перегрева изоляции.',
+      scrapedStatus: 'Экспресс-доставка Kaspi Postomat в день заказа',
+    },
+    {
+      id: 'mat-floor-1',
+      name: 'Наливной пол самонивелирующийся Bergauf Boden Zement Medium (25 кг)',
+      brand: 'Bergauf',
+      category: 'mixes',
+      categoryLabel: 'Смеси и полы',
+      storeName: '12 Месяцев',
+      storeUrl: 'https://www.12months.kz/catalog/nalivnoy-pol/',
+      storeLogoCode: '12m',
+      unit: 'мешок 25 кг',
+      unitPriceKzt: 3450,
+      requiredQty: screedBags,
+      totalCostKzt: screedBags * 3450,
+      sku: '12M-MIX-BODEN-25',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Прочность М200, толщина слоя 5-60 мм, трещиностойкий полимерцемент.',
+      scrapedStatus: 'Остаток: 340 шт. (12 Месяцев, ул. Валиханова)',
+    },
+    {
+      id: 'mat-mix-2',
+      name: 'Штукатурка гипсовая Knauf Ротбанд серая (30 кг)',
+      brand: 'Knauf',
+      category: 'mixes',
+      categoryLabel: 'Смеси и полы',
+      storeName: '12 Месяцев',
+      storeUrl: 'https://www.12months.kz/catalog/shtukaturka-gipsovaya/',
+      storeLogoCode: '12m',
+      unit: 'мешок 30 кг',
+      unitPriceKzt: 3650,
+      requiredQty: plasterBags,
+      totalCostKzt: plasterBags * 3650,
+      sku: '12M-KNF-ROTB-30',
+      inStock: true,
+      packageTier: 'all',
+      specification: 'Универсальная безусадочная гипсовая смесь для стен и откосов.',
+      scrapedStatus: 'Остаток: 420 шт. (12 Месяцев)',
+    },
+    {
+      id: 'mat-water-1',
+      name: 'Гидроизоляция эластичная Knauf Флэхендихт (5 кг)',
+      brand: 'Knauf',
+      category: 'insulation',
+      categoryLabel: 'Гидроизоляция',
+      storeName: '12 Месяцев',
+      storeUrl: 'https://www.12months.kz/catalog/gidroizolyatsiya/',
+      storeLogoCode: '12m',
+      unit: 'ведро 5 кг',
+      unitPriceKzt: 14200,
+      requiredQty: waterproofingBuckets,
+      totalCostKzt: waterproofingBuckets * 14200,
+      sku: '12M-KNF-FLACH-05',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Синтетический латекс без растворителей. Перекрытие трещин до 2 мм.',
+      scrapedStatus: 'В наличии, свежая партия 2026 г.',
+    },
+    {
+      id: 'mat-plumb-1',
+      name: 'Труба сшитый полиэтилен Rehau Rautitan Stabil 16.2х2.6 мм',
+      brand: 'Rehau (Германия)',
+      category: 'plumbing',
+      categoryLabel: 'Сантехника и ОВК',
+      storeName: 'Строймарт',
+      storeUrl: 'https://stroy-mart.kz/truby-rehau/',
+      storeLogoCode: 'stroymart',
+      unit: 'м.п.',
+      unitPriceKzt: 1850,
+      requiredQty: rehauPipeM,
+      totalCostKzt: rehauPipeM * 1850,
+      sku: 'STM-REH-STAB-16',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'PE-Xa / Алюминий / PE. Кислородонепроницаемая, рабочее давление до 10 бар.',
+      scrapedStatus: 'Официальный дистрибьютор Rehau в Астане',
+    },
+    {
+      id: 'mat-box-1',
+      name: 'Щит распределительный встраиваемый Schneider Electric Easy9 36 модулей',
+      brand: 'Schneider Electric',
+      category: 'electrical',
+      categoryLabel: 'Электромонтаж',
+      storeName: 'Kaspi Магазин',
+      storeUrl: 'https://kaspi.kz/shop/c/electrical-cabinets/',
+      storeLogoCode: 'kaspi',
+      unit: 'шт',
+      unitPriceKzt: 21500,
+      requiredQty: 1,
+      totalCostKzt: 21500,
+      sku: 'KSP-SCH-EZ9-36',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Белая дымчатая дверца, DIN-рейки, шины N/PE в комплекте. Запас 25%.',
+      scrapedStatus: 'Kaspi Доставка за 3 часа',
+    },
+    {
+      id: 'mat-auto-1',
+      name: 'Автоматический выключатель Schneider Easy9 1P 16A C (12 шт)',
+      brand: 'Schneider Electric',
+      category: 'electrical',
+      categoryLabel: 'Электромонтаж',
+      storeName: 'Kaspi Магазин',
+      storeUrl: 'https://kaspi.kz/shop/c/circuit-breakers/',
+      storeLogoCode: 'kaspi',
+      unit: 'комплект 12 шт',
+      unitPriceKzt: 28200,
+      requiredQty: 1,
+      totalCostKzt: 28200,
+      sku: 'KSP-SCH-EZ9-16A',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Отключающая способность 4.5 кА. Защита кабелей розеточных групп.',
+      scrapedStatus: 'Рейтинг 4.9 (420 отзывов Kaspi)',
+    },
+    {
+      id: 'mat-rcd-1',
+      name: 'УЗО двухполюсное Schneider Easy9 2P 25A 30мА (мокрые зоны, 3 шт)',
+      brand: 'Schneider Electric',
+      category: 'electrical',
+      categoryLabel: 'Электромонтаж',
+      storeName: 'Kaspi Магазин',
+      storeUrl: 'https://kaspi.kz/shop/c/circuit-breakers/',
+      storeLogoCode: 'kaspi',
+      unit: 'комплект 3 шт',
+      unitPriceKzt: 38400,
+      requiredQty: 1,
+      totalCostKzt: 38400,
+      sku: 'KSP-SCH-EZ9-RCD',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Защита человека от прямого прикосновения к токоведущим частям по ПУЭ РК.',
+      scrapedStatus: 'В наличии у сертифицированного партнера',
+    },
+    {
+      id: 'mat-relay-1',
+      name: 'Реле контроля напряжения DigiTOP V-protector 63A',
+      brand: 'DigiTOP',
+      category: 'electrical',
+      categoryLabel: 'Электромонтаж',
+      storeName: 'Kaspi Магазин',
+      storeUrl: 'https://kaspi.kz/shop/c/voltage-relays/',
+      storeLogoCode: 'kaspi',
+      unit: 'шт',
+      unitPriceKzt: 18900,
+      requiredQty: 1,
+      totalCostKzt: 18900,
+      sku: 'KSP-DIG-VP63A',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Цифровой дисплей, время срабатывания 0.02 сек при обрыве нуля.',
+      scrapedStatus: 'В наличии в Kaspi',
+    },
+    {
+      id: 'mat-nep-1',
+      name: 'Система защиты от протечек воды Neptun Base 1/2" с 2 электрокранами',
+      brand: 'Neptun',
+      category: 'plumbing',
+      categoryLabel: 'Сантехника и ОВК',
+      storeName: 'Строймарт',
+      storeUrl: 'https://stroy-mart.kz/sistemy-zashchity-ot-protechek/',
+      storeLogoCode: 'stroymart',
+      unit: 'комплект',
+      unitPriceKzt: 94000,
+      requiredQty: 1,
+      totalCostKzt: 94000,
+      sku: 'STM-NEP-BASE-12',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Автоматическое перекрытие стояков за 18 секунд при обнаружении влаги.',
+      scrapedStatus: 'Гарантия производителя 6 лет',
+    },
+    {
+      id: 'mat-sound-1',
+      name: 'Шумоизоляционная звукопоглощающая мембрана пола (рулон 10 м²)',
+      brand: 'СтопЗвук-М',
+      category: 'insulation',
+      categoryLabel: 'Шумоизоляция',
+      storeName: 'Лемана ПРО',
+      storeUrl: 'https://lemanapro.ru/catalogue/shumoizolyaciya/',
+      storeLogoCode: 'lemana',
+      unit: 'рулон 10 м²',
+      unitPriceKzt: 16500,
+      requiredQty: Math.ceil(area / 10),
+      totalCostKzt: Math.ceil(area / 10) * 16500,
+      sku: 'LMP-SZ-MEMB-10',
+      inStock: true,
+      packageTier: 'optimal',
+      specification: 'Снижение ударного шума на 26 дБ под плавающую стяжку.',
+      scrapedStatus: 'Лемана ПРО (Астана, трасса Астана-Караганда)',
+    },
+  ];
+
+  if (selectedTier === 'all') return allItems;
+  return allItems.filter((item) => item.packageTier === 'all' || item.packageTier === selectedTier || selectedTier === 'optimal');
+}
+
+export function generateProjectBlueprints(areaSqm: number): ProjectBlueprint[] {
+  const area = areaSqm && areaSqm > 0 ? areaSqm : 58;
+
+  // Базовый Смарт
+  const baseMaterials = Math.round(area * 28450);
+  const baseLabor = Math.round(area * 37930);
+  const baseTotal = baseMaterials + baseLabor;
+  const baseTimeline = Math.round(45 + area * 0.18);
+
+  // Оптимальный ГОСТ (РЕКОМЕНДУЕМ)
+  const optMaterials = Math.round(area * 42070);
+  const optLabor = Math.round(area * 55170);
+  const optTotal = optMaterials + optLabor;
+  const optTimeline = Math.round(60 + area * 0.3);
+
+  // Бизнес Премиум
+  const premMaterials = Math.round(area * 70690);
+  const premLabor = Math.round(area * 82760);
+  const premTotal = premMaterials + premLabor;
+  const premTimeline = Math.round(75 + area * 0.35);
+
+  return [
+    {
+      id: 'proj-base',
+      name: 'Проект 1: «Базовый Смарт»',
+      tagline: 'Надежный базовый стандарт для аренды или первой квартиры',
+      badge: 'Эконом-старт',
+      badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      isRecommended: false,
+      totalCostKzt: baseTotal,
+      materialsCostKzt: baseMaterials,
+      laborCostKzt: baseLabor,
+      costPerSqmKzt: Math.round(baseTotal / area),
+      timelineDays: baseTimeline,
+      warrantyMonths: 12,
+      roomsLayout: `Планировка ${area} м²: объединенная кухня-гостиная (~22 м²), спальня (~16 м²), совмещенный санузел (~5.5 м²), входная группа (~14.5 м²).`,
+      architecturalSummary: 'Сохранение перегородок застройщика без демонтажа. Оптимизированная раскладка полов без ступеней.',
+      keyFeatures: [
+        '8 выделенных групп розеточных сетей (кабель ГОСТ ВВГнг-LS)',
+        'Стандартная цементная стяжка М150 с демпферной лентой 8 мм',
+        'Гидроизоляция санузла обмазочная в 1 слой',
+        'Штукатурка стен по маякам под поклейку обоев',
+      ],
+      materialsHighlights: [
+        'Кабель ВВГнг-LS (Казэнергокабель)',
+        'Автоматы TDM / IEK 16A',
+        'Смеси Alinex / Bergauf',
+      ],
+      riskDefenseSummary: 'Базовая защита от коротких замыканий и трещин штукатурки.',
+      preventedRiskKzt: 3450000,
+      suitableFor: 'Инвестиционные квартиры под долгосрочную аренду, минимальный достаточный бюджет без критического брака.',
+    },
+    {
+      id: 'proj-optimal',
+      name: 'Проект 2: «Оптимальный ГОСТ»',
+      tagline: 'Золотой стандарт надежности и комфорта для семьи (Выбор инженера)',
+      badge: 'Рекомендуем · 90% новостроек',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      isRecommended: true,
+      totalCostKzt: optTotal,
+      materialsCostKzt: optMaterials,
+      laborCostKzt: optLabor,
+      costPerSqmKzt: Math.round(optTotal / area),
+      timelineDays: optTimeline,
+      warrantyMonths: 36,
+      roomsLayout: `Экспликация ${area} м²: Мастер-спальня с гардеробным отсеком, кухня-гостиная с ТВ-зоной, эргономичный санузел с душевым трапом и прачечной нишей.`,
+      architecturalSummary: 'Зонирование с учетом естественного освещения. Прокладка сетей строго в коробах и стяжке без штробления монолита (ст. 4 Закона РК).',
+      keyFeatures: [
+        '14 групп электрощита Schneider Electric Easy9 с реле DigiTOP 63A и УЗО 30мА',
+        'Самонивелирующийся наливной пол Bergauf М200 под единый кварцвинил без порожков',
+        'Трубы из сшитого полиэтилена Rehau Rautitan Stabil без стыков в полу',
+        'Двухслойная гидроизоляция Knauf Флэхендихт с эластомерной лентой',
+        'Система защиты от затопления Neptun Base с электрокранами автоперекрытия',
+        'Шумоизоляция перекрытий СтопЗвук-М (снижение ударного шума 26 дБ)',
+      ],
+      materialsHighlights: [
+        'Кабель ГОСТ ВВГнг-LS (12 Месяцев)',
+        'Автоматика Schneider Electric Easy9 (Kaspi)',
+        'Трубы Rehau Rautitan (Строймарт)',
+        'Гидроизоляция Knauf Флэхендихт (12 Месяцев)',
+      ],
+      riskDefenseSummary: 'Полная нейтрализация 3 ловушек демпинга, перегруза сети и штрафов ГАСК.',
+      preventedRiskKzt: 5250000,
+      suitableFor: 'Комфортная семейная жизнь в современных ЖК Астаны и Алматы с гарантией 3 года.',
+    },
+    {
+      id: 'proj-premium',
+      name: 'Проект 3: «Бизнес Премиум»',
+      tagline: 'Бескомпромиссная инженерная роскошь с автоматизацией и скрытым монтажом',
+      badge: 'Премиум Хай-Тек',
+      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+      isRecommended: false,
+      totalCostKzt: premTotal,
+      materialsCostKzt: premMaterials,
+      laborCostKzt: premLabor,
+      costPerSqmKzt: Math.round(premTotal / area),
+      timelineDays: premTimeline,
+      warrantyMonths: 60,
+      roomsLayout: `Индивидуальная трансформация ${area} м²: открытая студия-лаунж, приватная мастер-зона, скрытая гардеробная, спа-санузел с ванной и тропическим душем.`,
+      architecturalSummary: 'Теневые плинтусы, скрытые двери Invisible в потолок, щелевые диффузоры вентиляции и магнитные треки.',
+      keyFeatures: [
+        'Электрощит ABB Mistral 54 модуля с мастер-выключателем "выключить всё"',
+        'Коллекторная лучевая разводка Rehau с сервоприводами и датчиками протечки',
+        'Полная акустическая изоляция комнат SoundGuard по принципу "комната в комнате"',
+        'Канальная система кондиционирования с подмесом свежего воздуха',
+        'Выравнивание геометрии 90° по лазерной лампе Лосева под окраску матовой краской Little Greene',
+      ],
+      materialsHighlights: [
+        'Автоматика ABB / Hager (Швейцария/Германия)',
+        'Трубы Rehau Rautitan Platinum',
+        'Звукоизоляция SoundGuard',
+      ],
+      riskDefenseSummary: 'Максимальный щит с 5-летней гарантией и персональным инженером технадзора.',
+      preventedRiskKzt: 7800000,
+      suitableFor: 'Элитные новостройки бизнес- и премиум-класса (Highvill, Sensata, BI Group Business).',
+    },
+  ];
+}
+
+export function generateSpecializedAgentStages(areaSqm: number, city: string): SpecializedAgentStage[] {
+  const area = areaSqm && areaSqm > 0 ? areaSqm : 58;
+  const quantities = calculateConstructionQuantities(area);
+
+  return [
+    {
+      id: 'stg-alpha-1',
+      agentNumber: 1,
+      agentCode: 'AGT-01 · ALPHA',
+      agentName: 'Алексей',
+      agentRole: 'Инженер первичного аудита и геометрии',
+      avatarIcon: 'Ruler',
+      avatarBg: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+      stageTitle: 'Этап 1: Физико-геометрический расчёт и изоляция фактов',
+      whatStudied: `Изучил входящий запрос и габариты объекта: ${city || 'Астана'}, площадь ${area} м², типовая планировка с мокрыми зонами.`,
+      whatSolved: `Рассчитал физические объёмы объекта (стены ${quantities.wall_area_sqm} м², кабель ${quantities.cable_length_m} м, сухие смеси ${quantities.plaster_estimate_kg} кг, ${quantities.electrical_points} точек). Исключил завышение объёмов недобросовестными бригадами (+20% к площади).`,
+      deliverableTitle: 'Цифровая ведомость объемов (BOQ)',
+      deliverableValue: `${quantities.wall_area_sqm} м² стен · ${quantities.cable_length_m} м кабеля · ${quantities.electrical_points} электроточек`,
+      links: [
+        { label: 'СНиП 2.03.13-88 (Полы)', url: 'https://adilet.zan.kz/rus/docs/P1200000880', type: 'law' },
+        { label: 'ГОСТ 31358-2019 (Смеси стяжки)', url: 'https://adilet.zan.kz/rus/docs/P1200000880', type: 'standard' },
+      ],
+      status: 'COMPLETED',
+    },
+    {
+      id: 'stg-scraper-2',
+      agentNumber: 2,
+      agentCode: 'AGT-04 · SCRAPER',
+      agentName: 'Айдос',
+      agentRole: 'Скрапер-Агент рыночных цен и снабжения',
+      avatarIcon: 'ShoppingCart',
+      avatarBg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      stageTitle: 'Этап 2: Онлайн-парсинг магазинов Астаны и смета материалов',
+      whatStudied: 'Спарсил актуальные розничные каталоги строительных гипермаркетов: «12 Месяцев», «Kaspi Магазин», «Строймарт», «Лемана ПРО».',
+      whatSolved: 'Собрал честную спецификацию материалов по реальным ценам без прорабской наценки (+35%). Привязал прямые ссылки на покупку каждого товара.',
+      deliverableTitle: 'Чеки магазинов со ссылками на покупку',
+      deliverableValue: '14 проверенных позиций · 2 440 000 ₸ по оптовым/розничным ценам',
+      links: [
+        { label: '12 Месяцев (12months.kz)', url: 'https://www.12months.kz/', type: 'store' },
+        { label: 'Kaspi Магазин (kaspi.kz)', url: 'https://kaspi.kz/shop/', type: 'store' },
+        { label: 'Строймарт (stroy-mart.kz)', url: 'https://stroy-mart.kz/', type: 'store' },
+      ],
+      status: 'COMPLETED',
+    },
+    {
+      id: 'stg-arch-3',
+      agentNumber: 3,
+      agentCode: 'AGT-03 · ARCHITECT',
+      agentName: 'Марина',
+      agentRole: 'Главный архитектор и BIM-проектировщик',
+      avatarIcon: 'Layers',
+      avatarBg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+      stageTitle: 'Этап 3: Формирование 3 готовых проектов планировки и сетей',
+      whatStudied: `Проанализировала эргономику квартиры ${area} м²: инсоляцию, трассировку кондиционирования, привязку кухонного острова и мастер-спальни.`,
+      whatSolved: 'Создала 3 готовых проекта («Базовый Смарт», «Оптимальный ГОСТ», «Бизнес Премиум») с разделением на материалы и работы.',
+      deliverableTitle: '3 Готовых архитектурных решения',
+      deliverableValue: 'Базовый (3.85М ₸) · Оптимальный (5.64М ₸) · Премиум (8.90М ₸)',
+      links: [
+        { label: 'СН РК 3.02-01-2018 (Жилые здания)', url: 'https://adilet.zan.kz/rus/docs/P1200000880', type: 'law' },
+      ],
+      status: 'COMPLETED',
+    },
+    {
+      id: 'stg-skeptic-4',
+      agentNumber: 4,
+      agentCode: 'AGT-05 · SKEPTICS',
+      agentName: 'Елена и Виктор',
+      agentRole: 'Агенты-Скептики строительного брака и сметных ловушек',
+      avatarIcon: 'ShieldAlert',
+      avatarBg: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+      stageTitle: 'Этап 4: Состязательный аудит рисков и парирование демпинга',
+      whatStudied: 'Проверили смету на скрытые накрутки, перегруз вводного автомата 25А и прогиб монолитных плит до 35 мм.',
+      whatSolved: 'Вскрыли демпинговую ловушку (-2.4 млн ₸), защитили ввод от выгорания через реле DigiTOP и ликвидировали скрип пола самонивелиром М200.',
+      deliverableTitle: 'Щит парированных строительных рисков',
+      deliverableValue: 'Предотвращен финансовый ущерб на сумму 5 250 000 ₸',
+      links: [
+        { label: 'ПУЭ РК 7.1 (Электроустановки)', url: 'https://adilet.zan.kz/rus/docs/V1500010834', type: 'law' },
+        { label: 'СН РК 8.02-05-2002 (Сметные нормы)', url: 'https://adilet.zan.kz/rus/docs/P1200000880', type: 'law' },
+      ],
+      status: 'COMPLETED',
+    },
+    {
+      id: 'stg-jurist-5',
+      agentNumber: 5,
+      agentCode: 'AGT-06 · JURIST',
+      agentName: 'Артур',
+      agentRole: 'Юрист строительного надзора, ГАСК и договора',
+      avatarIcon: 'Scale',
+      avatarBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      stageTitle: 'Этап 5: Юридическая верификация и сборка договора WorkBrief',
+      whatStudied: 'Проверил план на соответствие ст. 4 Закона РК о жилищных отношениях (запрет мокрых зон над жилыми комнатами).',
+      whatSolved: 'Заблокировал несанкционированные финансовые списания. Сформировал юридически обязывающий WorkBrief с эскроу-актированием 14 актов АОСР.',
+      deliverableTitle: 'Юридический WorkBrief с фиксацией сметы',
+      deliverableValue: 'Цена зафиксирована · Запрет скрытых доплат · Поэтапная оплата',
+      links: [
+        { label: 'Закон РК «О жилищных отношениях» (ст. 4)', url: 'https://adilet.zan.kz/rus/docs/Z970000094_', type: 'law' },
+      ],
+      status: 'COMPLETED',
     },
   ];
 }

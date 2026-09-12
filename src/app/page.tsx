@@ -581,6 +581,9 @@ export default function Home() {
               workBreakdown={agentData.work_breakdown}
               loopSteps={agentData.agent_loop_steps}
               skepticVerdicts={agentData.skeptic_verdicts}
+              marketMaterials={agentData.market_materials}
+              projectBlueprints={agentData.project_blueprints}
+              specializedStages={agentData.specialized_agent_stages}
               onOpenWorkBrief={() => setActiveTab('brief')}
             />
           </div>
