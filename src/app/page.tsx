@@ -334,6 +334,7 @@ export default function Home() {
           <FactsMatrix
             facts={agentData.facts}
             unknowns={agentData.unknowns}
+            modelSuggestions={agentData.model_suggestions}
           />
         )}
 

@@ -35,9 +35,8 @@ export function executeCreateWorkBriefDraft(input: CreateDraftInput): { draft: W
     'Черновик фиксирует вводные для специалиста и не является обязательством по оплате.',
   ];
 
-  // Никаких выдуманных фактов или домыслов («под ключ», «лазерный аудит»).
-  // В допущения входят ТОЛЬКО подтверждённые ответы пользователя и особые пожелания из сообщения.
-  const cleanedAssumptions: string[] = [];
+  // В WorkBrief допускаются ТОЛЬКО подтверждённые ответы пользователя и подтверждённые пожелания.
+  const cleanedAssumptions: string[] = [...assumptions];
   if (facts.special_requests.length > 0) {
     facts.special_requests.forEach((req) => cleanedAssumptions.push(`Пожелание заказчика: ${req}`));
   }
@@ -48,9 +47,10 @@ export function executeCreateWorkBriefDraft(input: CreateDraftInput): { draft: W
     });
   }
 
-  const cityVal = facts.city.value || 'Уточняется';
-  const typeVal = facts.property_type.value || 'Объект';
-  const areaVal = facts.area_sqm.value ? `${facts.area_sqm.value} м²` : '';
+  // В заголовке WorkBrief используются только подтверждённые факты (source === 'USER')
+  const cityVal = facts.city.source === 'USER' && facts.city.value ? facts.city.value : 'Уточняется';
+  const typeVal = facts.property_type.source === 'USER' && facts.property_type.value ? facts.property_type.value : 'Объект';
+  const areaVal = facts.area_sqm.source === 'USER' && facts.area_sqm.value ? `${facts.area_sqm.value} м²` : '';
 
   const draft: WorkBriefDraft = {
     idempotency_key,

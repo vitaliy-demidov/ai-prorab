@@ -91,13 +91,31 @@ export interface PolicyNotice {
   user_warning: string;
 }
 
-// Схема структурированного JSON для Hybrid AI (LLM-адаптер)
+export const ModelSuggestionSchema = z.object({
+  field: z.string(),
+  label: z.string(),
+  proposed_value: z.union([z.string(), z.number()]),
+  reason: z.string(),
+});
+export type ModelSuggestion = z.infer<typeof ModelSuggestionSchema>;
+
+// Схема структурированного JSON для Hybrid AI (LLM-адаптер) с evidence spans
 export const HybridExtractionSchema = z.object({
   city: z.string().nullable().optional(),
+  city_evidence: z.string().nullable().optional(),
   property_type: z.string().nullable().optional(),
+  property_type_evidence: z.string().nullable().optional(),
   area_sqm: z.number().nullable().optional(),
+  area_sqm_evidence: z.string().nullable().optional(),
   target_timeline_months: z.number().nullable().optional(),
-  special_requests: z.array(z.string()).default([]),
+  target_timeline_months_evidence: z.string().nullable().optional(),
+  special_requests: z.array(z.union([
+    z.string(),
+    z.object({
+      request: z.string(),
+      evidence_text: z.string().nullable().optional(),
+    }),
+  ])).default([]),
   unknown_fields: z.array(z.object({
     id: z.string(),
     label: z.string(),
@@ -126,6 +144,7 @@ export interface AgentRunResponse {
   engine_badge: string;
   policy_notice?: PolicyNotice | null;
   facts: VerifiedFacts;
+  model_suggestions: ModelSuggestion[];
   unknowns: UnknownFieldItem[];
   questions: SmartQuestion[];
   risks: RiskItem[];

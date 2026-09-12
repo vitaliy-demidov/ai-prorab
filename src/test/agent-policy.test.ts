@@ -132,14 +132,18 @@ describe('AI Прораб — Инварианты безопасности Hack
     expect(response.readiness.can_proceed_to_rfq).toBe(false);
   });
 
-  // ТЕСТ 8: Валидный LLM JSON парсится, проверяется Zod и используется в Hybrid режиме
+  // ТЕСТ 8: Валидный LLM JSON парсится по схеме Zod и используется в Hybrid режиме
   it('8. Валидный LLM JSON парсится по схеме Zod, используется в ответе и активирует hybrid режим', async () => {
     const mockLlmExtractor = async () => ({
       city: 'Астана',
+      city_evidence: 'в Астане',
       property_type: '2-комнатная квартира',
+      property_type_evidence: 'двухкомнатную квартиру',
       area_sqm: 58,
+      area_sqm_evidence: '58 м²',
       target_timeline_months: 4,
-      special_requests: ['Современный ремонт'],
+      target_timeline_months_evidence: 'через 4 месяца',
+      special_requests: [{ request: 'Современный ремонт', evidence_text: 'современный ремонт' }],
       unknown_fields: [
         {
           id: 'custom_unknown',
@@ -164,21 +168,15 @@ describe('AI Прораб — Инварианты безопасности Hack
       llmExtractor: mockLlmExtractor,
     });
 
-    // Режим hybrid активирован только потому, что результат реально прошел и использован
     expect(response.engine_mode).toBe('hybrid');
     expect(response.engine_badge).toBe('Hybrid AI · LLM + Policy Guard');
-
-    // Факты действительно взяты из результата LLM
     expect(response.facts.city.value).toBe('Астана');
-    expect(response.facts.city.source).toBe('USER'); // Подтвержден текстом запроса
+    expect(response.facts.city.source).toBe('USER');
     expect(response.facts.area_sqm.value).toBe(58);
-    expect(response.facts.area_sqm.source).toBe('USER'); // Подтвержден текстом запроса
-
-    // Вопросы из LLM использованы в ответе
+    expect(response.facts.area_sqm.source).toBe('USER');
     expect(response.questions.length).toBeGreaterThanOrEqual(1);
     expect(response.questions[0].id).toBe('q_llm_1');
 
-    // В trace зафиксирован успешный вызов LLM адаптера
     const llmTrace = response.tool_traces.find((t) => t.tool_name === 'llm_hybrid_adapter');
     expect(llmTrace?.status).toBe('SUCCESS');
   });
@@ -194,8 +192,6 @@ describe('AI Прораб — Инварианты безопасности Hack
 
     expect(response.engine_mode).toBe('deterministic_fallback');
     expect(response.engine_badge).toBe('AI недоступен — показан безопасный demo fallback');
-
-    // Детерминированное ядро всё равно успешно отдало факты
     expect(response.facts.city.value).toBe('Астана');
     expect(response.facts.area_sqm.value).toBe(58);
 
@@ -209,7 +205,7 @@ describe('AI Прораб — Инварианты безопасности Hack
       city: 'Астана',
       property_type: '2-комнатная квартира',
       area_sqm: 58,
-      final_price: 5500000, // Попытка выдать финальную смету
+      final_price: 5500000,
       cost_estimate: '5.5 млн тенге',
     });
 
@@ -218,29 +214,28 @@ describe('AI Прораб — Инварианты безопасности Hack
       llmExtractor: maliciousLlmExtractor,
     });
 
-    // Guard перехватил попытку модели сгенерировать цену
     expect(response.engine_mode).toBe('deterministic_fallback');
     expect(response.engine_badge).toBe('AI недоступен — показан безопасный demo fallback');
 
-    // Проверяем, что в trace шаг помечен как GUARD_INTERCEPTED
     const llmTrace = response.tool_traces.find((t) => t.tool_name === 'llm_hybrid_adapter');
     expect(llmTrace?.status).toBe('GUARD_INTERCEPTED');
 
-    // В ответе нет никаких полей цены
     expect('final_price' in (response as any)).toBe(false);
     expect('final_price' in (response.facts as any)).toBe(false);
   });
 
-  // ТЕСТ 11: Модель не может подменить факт пользователя (строгий контроль Provenance)
-  it('11. Модель не может выдать догадку за факт пользователя: неподтвержденный факт получает MODEL_EXTRACTION', async () => {
-    // Пользователь НЕ упоминал Алматы и 120 метров в тексте запроса
+  // ТЕСТ 11 (ПЕРЕПИСАН): Выдуманные Алматы / 120 м² НЕ попадают в facts или WorkBrief
+  it('11. Выдуманные моделью Алматы / 120 м² НЕ попадают в facts и WorkBrief, а изолируются в model_suggestions', async () => {
     const userQuery = 'Купил двухкомнатную квартиру в Астане, 58 м²';
 
     const hallucinatingLlmExtractor = async () => ({
       city: 'Алматы', // Модель придумала другой город
+      city_evidence: 'Алматы',
       property_type: '2-комнатная квартира',
+      property_type_evidence: 'двухкомнатную квартиру',
       area_sqm: 120, // Модель придумала 120 метров
-      target_timeline_months: 6, // Модель придумала 6 месяцев
+      area_sqm_evidence: '120 м²',
+      target_timeline_months: 6,
     });
 
     const response = await AgentOrchestrator.run({
@@ -248,16 +243,164 @@ describe('AI Прораб — Инварианты безопасности Hack
       llmExtractor: hallucinatingLlmExtractor,
     });
 
-    // Город "Алматы" не упомянут пользователем -> обязан быть MODEL_EXTRACTION
-    expect(response.facts.city.value).toBe('Алматы');
-    expect(response.facts.city.source).toBe('MODEL_EXTRACTION');
-    expect(response.facts.city.label).toContain('предложено AI');
+    // 1. В facts.city НЕ должно быть Алматы! Там остаётся проверенная Астана из текста
+    expect(response.facts.city.value).toBe('Астана');
+    expect(response.facts.city.source).toBe('USER');
 
-    // Площадь 120 не упомянута пользователем -> обязана быть MODEL_EXTRACTION
-    expect(response.facts.area_sqm.value).toBe(120);
-    expect(response.facts.area_sqm.source).toBe('MODEL_EXTRACTION');
+    // 2. В facts.area_sqm НЕ должно быть 120! Там остаются проверенные 58 м²
+    expect(response.facts.area_sqm.value).toBe(58);
+    expect(response.facts.area_sqm.source).toBe('USER');
 
-    // 2-комнатная квартира упомянута пользователем -> подтверждена как USER
-    expect(response.facts.property_type.source).toBe('USER');
+    // 3. Выдуманные значения перенесены в model_suggestions
+    const citySuggestion = response.model_suggestions.find((s) => s.field === 'city');
+    const areaSuggestion = response.model_suggestions.find((s) => s.field === 'area_sqm');
+    expect(citySuggestion).toBeDefined();
+    expect(citySuggestion?.proposed_value).toBe('Алматы');
+    expect(areaSuggestion).toBeDefined();
+    expect(areaSuggestion?.proposed_value).toBe('120 м²');
+
+    // 4. В WorkBrief черновике нет ни Алматы, ни 120 м²
+    expect(response.workbrief_draft?.title).toContain('Астана');
+    expect(response.workbrief_draft?.title).toContain('58 м²');
+    expect(response.workbrief_draft?.title).not.toContain('Алматы');
+    expect(response.workbrief_draft?.title).not.toContain('120');
+  });
+
+  // ТЕСТ 12: Ложное число (кв. 58 — это номер квартиры, а не площадь)
+  it('12. Число без контекста площади (кв. 58) не подтверждается как площадь объекта', async () => {
+    const aptNumberQuery = 'Живу в кв. 58, дом 4. Нужен косметический ремонт';
+
+    const falseNumberLlmExtractor = async () => ({
+      area_sqm: 58,
+      area_sqm_evidence: 'кв. 58', // Попытка выдать номер квартиры за площадь
+    });
+
+    const response = await AgentOrchestrator.run({
+      query: aptNumberQuery,
+      llmExtractor: falseNumberLlmExtractor,
+    });
+
+    // В VerifiedFacts площадь НЕ должна стать 58!
+    expect(response.facts.area_sqm.value).toBeNull();
+    expect(response.facts.area_sqm.source).toBe('UNKNOWN');
+
+    // Предложение изолировано в model_suggestions
+    const areaSuggestion = response.model_suggestions.find((s) => s.field === 'area_sqm');
+    expect(areaSuggestion).toBeDefined();
+    expect(areaSuggestion?.reason).toContain('не подтверждён');
+  });
+
+  // ТЕСТ 13: Вложенная цена в вариантах ответа блокируется рекурсивным Policy Guard
+  it('13. Вложенная цена внутри вариантов ответа вопроса блокируется рекурсивным Policy Guard', async () => {
+    const hiddenPriceLlmExtractor = async () => ({
+      city: 'Астана',
+      city_evidence: 'в Астане',
+      questions: [
+        {
+          id: 'q_sneaky',
+          question: 'Какой пакет услуг выбираете?',
+          why_needed: 'Для выбора тарифа',
+          recommended_options: [
+            'Базовый',
+            'Фиксированная цена под ключ: 4 500 000 тг', // Вложенная запрещенная смета!
+          ],
+        },
+      ],
+    });
+
+    const response = await AgentOrchestrator.run({
+      query: mainScenario,
+      llmExtractor: hiddenPriceLlmExtractor,
+    });
+
+    // Рекурсивный guard должен был перехватить скрытую цену
+    expect(response.engine_mode).toBe('deterministic_fallback');
+    const trace = response.tool_traces.find((t) => t.tool_name === 'llm_hybrid_adapter');
+    expect(trace?.status).toBe('GUARD_INTERCEPTED');
+  });
+
+  // ТЕСТ 14: Неподтверждённые пожелания модели не попадают в WorkBrief
+  it('14. Неподтверждённые пожелания модели не записываются как пожелания заказчика', async () => {
+    const unconfirmedWishesLlmExtractor = async () => ({
+      city: 'Астана',
+      city_evidence: 'в Астане',
+      special_requests: [
+        'Умный дом с голосовым управлением', // Пользователь этого НЕ просил!
+        'Премиальный штучный паркет',
+      ],
+    });
+
+    const response = await AgentOrchestrator.run({
+      query: mainScenario,
+      llmExtractor: unconfirmedWishesLlmExtractor,
+    });
+
+    // В facts.special_requests только то, что просил пользователь
+    expect(response.facts.special_requests).not.toContain('Умный дом с голосовым управлением');
+    expect(response.facts.special_requests).not.toContain('Премиальный штучный паркет');
+
+    // Неподтвержденные пожелания вынесены в model_suggestions
+    const wishSuggestion = response.model_suggestions.find((s) => s.field === 'special_request');
+    expect(wishSuggestion).toBeDefined();
+  });
+
+  // ТЕСТ 15: Объединение неизвестных от модели с детерминированными без дубликатов
+  it('15. Валидные неизвестные от модели объединяются с детерминированными без дублей', async () => {
+    const customUnknownsLlmExtractor = async () => ({
+      city: 'Астана',
+      city_evidence: 'в Астане',
+      unknown_fields: [
+        {
+          id: 'ventilation_type', // Новое валидное неизвестное
+          label: 'Тип вентиляции',
+          explanation: 'Необходимо обследовать естественную вытяжку',
+          priority: 'HIGH' as const,
+        },
+        {
+          id: 'property_state', // Дубликат существующего id
+          label: 'Состояние отделки',
+          explanation: 'Черновая или White Box',
+          priority: 'CRITICAL' as const,
+        },
+      ],
+    });
+
+    const response = await AgentOrchestrator.run({
+      query: mainScenario,
+      llmExtractor: customUnknownsLlmExtractor,
+    });
+
+    const ventItem = response.unknowns.find((u) => u.id === 'ventilation_type');
+    expect(ventItem).toBeDefined();
+    expect(ventItem?.label).toBe('Тип вентиляции');
+
+    // Нет дубликатов по property_state
+    const propertyStateItems = response.unknowns.filter((u) => u.id === 'property_state');
+    expect(propertyStateItems.length).toBe(1);
+  });
+
+  // ТЕСТ 16: Слово «квартира» не подтверждает «2-комнатную квартиру»
+  it('16. Слово «квартира» без указания комнатности не подтверждает 2-комнатную квартиру', async () => {
+    const genericFlatQuery = 'Купил квартиру в Астане, 58 м²'; // Нет слова «2-комнатная»
+
+    const guessingLlmExtractor = async () => ({
+      city: 'Астана',
+      city_evidence: 'в Астане',
+      property_type: '2-комнатная квартира', // Модель наугад предположила 2 комнаты
+      property_type_evidence: 'квартиру',
+    });
+
+    const response = await AgentOrchestrator.run({
+      query: genericFlatQuery,
+      llmExtractor: guessingLlmExtractor,
+    });
+
+    // 2-комнатная НЕ подтверждена!
+    expect(response.facts.property_type.value).not.toBe('2-комнатная квартира');
+
+    // Предположение ушло в model_suggestions
+    const propSuggestion = response.model_suggestions.find((s) => s.field === 'property_type');
+    expect(propSuggestion).toBeDefined();
+    expect(propSuggestion?.proposed_value).toBe('2-комнатная квартира');
   });
 });

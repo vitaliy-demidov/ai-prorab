@@ -9,9 +9,13 @@ export interface PolicyViolation {
 
 export class ConstructionPolicyGuard {
   /**
-   * Проверка на попытку назвать или запросить финальную/фиксированную цену/смету до обмера.
+   * Рекурсивная проверка на попытку назвать, запросить или включить в варианты цену/смету/внешнее действие.
    */
   public static validatePriceSafety(textOrData: unknown): { allowed: boolean; notice?: PolicyNotice } {
+    if (textOrData === null || textOrData === undefined) {
+      return { allowed: true };
+    }
+
     if (typeof textOrData === 'string') {
       const forbiddenPricePatterns = [
         /(?:итоговая|точная|окончательная|гарантированная|фиксированная)\s+(?:цена|стоимость|смета)/i,
@@ -19,6 +23,8 @@ export class ConstructionPolicyGuard {
         /(?:цена\s+под\s+ключ\s*:\s*\d+)/i,
         /(?:назови\s+(?:мне\s+)?(?:точную\s+)?цену|посчитай\s+(?:точную\s+)?смету|сколько\s+будет\s+стоить\s+(?:под\s+ключ|точно))/i,
         /(?:дай\s+финальную\s+стоимость|гарантируй\s+бюджет)/i,
+        /(?:смета\s+составит|цена\s+составит|стоимость\s+составляет)\s*\d+/i,
+        /\d+[\s\d]*\s*(?:тыс|млн|миллион\w*|тг|тенге|руб|usd|\$)\s*(?:под\s+ключ|за\s+все|за\s+всё|итого)/i,
       ];
 
       for (const pattern of forbiddenPricePatterns) {
@@ -28,7 +34,7 @@ export class ConstructionPolicyGuard {
             notice: {
               blocked: true,
               rule: 'PROHIBIT_PREMATURE_FINAL_PRICE',
-              message: 'Политика безопасности запрещает рассчитывать или обещать итоговую смету до инструментального обмера специалистом.',
+              message: `Политика безопасности запрещает рассчитывать или обещать итоговую смету: «${textOrData.slice(0, 80)}...»`,
               user_warning: 'Запрос на точную цену перехвачен: смета не формируется, чтобы не обещать цифру, которую объект не подтвердил.',
             },
           };
@@ -36,7 +42,19 @@ export class ConstructionPolicyGuard {
       }
     }
 
-    if (typeof textOrData === 'object' && textOrData !== null) {
+    // Рекурсивный обход массивов
+    if (Array.isArray(textOrData)) {
+      for (const item of textOrData) {
+        const itemCheck = this.validatePriceSafety(item);
+        if (!itemCheck.allowed) {
+          return itemCheck;
+        }
+      }
+      return { allowed: true };
+    }
+
+    // Рекурсивный обход объектов
+    if (typeof textOrData === 'object') {
       const record = textOrData as Record<string, unknown>;
       const forbiddenKeys = [
         'final_guaranteed_price',
@@ -45,6 +63,7 @@ export class ConstructionPolicyGuard {
         'cost_estimate',
         'budget_calculation',
         'financial_advice',
+        'external_action',
       ];
 
       for (const key of forbiddenKeys) {
@@ -54,20 +73,18 @@ export class ConstructionPolicyGuard {
             notice: {
               blocked: true,
               rule: 'PROHIBIT_PREMATURE_FINAL_PRICE',
-              message: `Поле «${key}» заблокировано защитным контуром. Расчёт сметы запрещен до проведения инструментального обмера.`,
-              user_warning: 'Попытка генерации цены или сметы перехвачена: поле удалено.',
+              message: `Поле «${key}» заблокировано защитным контуром. Расчёт сметы и внешние действия запрещены.`,
+              user_warning: 'Попытка генерации цены или внешнего действия перехвачена: поле удалено.',
             },
           };
         }
       }
 
-      // Рекурсивный поиск запрещенных ценовых фраз в строковых полях
-      for (const [k, v] of Object.entries(record)) {
-        if (typeof v === 'string') {
-          const stringCheck = this.validatePriceSafety(v);
-          if (!stringCheck.allowed) {
-            return stringCheck;
-          }
+      // Рекурсивная проверка всех значений объекта (включая вопросы, options, explanation)
+      for (const value of Object.values(record)) {
+        const subCheck = this.validatePriceSafety(value);
+        if (!subCheck.allowed) {
+          return subCheck;
         }
       }
     }

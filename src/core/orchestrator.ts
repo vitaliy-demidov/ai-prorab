@@ -6,10 +6,10 @@ import {
   HybridExtractionSchema,
   HybridExtraction,
   VerifiedFacts,
-  FactSource,
   UnknownFieldItem,
   SmartQuestion,
-  PipelineStage
+  PipelineStage,
+  ModelSuggestion
 } from '@/types/agent';
 import { executeExtractBrief } from './tools/extract-brief';
 import { executeIdentifyMissingFields } from './tools/identify-missing';
@@ -24,22 +24,10 @@ export interface RunAgentOptions {
   createDraft?: boolean;
   idempotencyKey?: string;
   userAnswers?: Record<string, string>;
-  // Для тестирования и инжекции внешнего провайдера
   llmExtractor?: (query: string) => Promise<unknown>;
 }
 
 export class AgentOrchestrator {
-  /**
-   * Главный цикл запуска агента:
-   * 1. Входная валидация Policy Guard (перехват запросов на цену).
-   * 2. Выбор режима:
-   *    - Если запрошен hybrid и есть ключ/экстрактор: вызов LLM -> парсинг -> Zod safeParse -> Policy Guard.
-   *    - При успехе: факты получают source MODEL_EXTRACTION (USER только если подтверждены текстом).
-   *    - При любой ошибке/нарушении: автоматический переход в deterministic_fallback.
-   *    - По умолчанию: детерминированное ядро (Demo mode).
-   * 3. Формирование аудируемого следа (Tool Traces).
-   * 4. Идемпотентная сборка WorkBrief без выдуманных фактов.
-   */
   public static async run(options: RunAgentOptions): Promise<AgentRunResponse> {
     const { 
       query, 
@@ -52,7 +40,7 @@ export class AgentOrchestrator {
     const traces: ToolExecutionTrace[] = [];
     const timestamp = () => new Date().toISOString();
 
-    // 1. ПРОВЕРКА POLICY GUARD НА ВХОДЕ: перехват запроса на точную/финальную цену
+    // 1. ПРОВЕРКА POLICY GUARD НА ВХОДЕ: перехват запроса цены
     const priceCheck = ConstructionPolicyGuard.validatePriceSafety(query);
     let policyNotice: PolicyNotice | null = null;
 
@@ -86,16 +74,8 @@ export class AgentOrchestrator {
           throw new Error('LLM вернула пустой или некорректный тип данных');
         }
 
-        // Б. Валидация Zod: HybridExtractionSchema
-        const zodValidation = HybridExtractionSchema.safeParse(parsedJson);
-        if (!zodValidation.success) {
-          throw new Error(`Ошибка валидации Zod: ${zodValidation.error.message}`);
-        }
-
-        const candidate = zodValidation.data;
-
-        // В. Policy Guard после LLM: запрет цены, сметы, фин. советов и внешних действий
-        const postLlmPriceCheck = ConstructionPolicyGuard.validatePriceSafety(candidate);
+        // Б. Рекурсивный Policy Guard ДО применения
+        const postLlmPriceCheck = ConstructionPolicyGuard.validatePriceSafety(parsedJson);
         if (!postLlmPriceCheck.allowed) {
           traces.push({
             step: 0,
@@ -109,6 +89,14 @@ export class AgentOrchestrator {
           });
           throw new Error('Ответ LLM нарушил политику запрета цен');
         }
+
+        // В. Валидация Zod: HybridExtractionSchema
+        const zodValidation = HybridExtractionSchema.safeParse(parsedJson);
+        if (!zodValidation.success) {
+          throw new Error(`Ошибка валидации Zod: ${zodValidation.error.message}`);
+        }
+
+        const candidate = zodValidation.data;
 
         if (candidate.external_action || candidate.financial_advice) {
           traces.push({
@@ -124,7 +112,6 @@ export class AgentOrchestrator {
           throw new Error('Ответ LLM содержал внешние действия');
         }
 
-        // Г. Успешная валидация
         hybridExtractionResult = candidate;
         engineMode = 'hybrid';
         engineBadge = 'Hybrid AI · LLM + Policy Guard';
@@ -141,11 +128,11 @@ export class AgentOrchestrator {
             area_proposed: candidate.area_sqm,
             timeline_proposed: candidate.target_timeline_months,
             questions_count: candidate.questions?.length || 0,
+            unknowns_count: candidate.unknown_fields?.length || 0,
           },
           policy_decision: 'HYBRID_VALIDATED: Структурированный JSON валидирован по Zod и проверен Policy Guard.',
         });
       } catch (err: any) {
-        // Безопасный fallback при ошибке, невалидном JSON или перехвате guard
         engineMode = 'deterministic_fallback';
         engineBadge = 'AI недоступен — показан безопасный demo fallback';
 
@@ -164,34 +151,39 @@ export class AgentOrchestrator {
       }
     }
 
-    // ШАГ 1: extract_brief с учетом источника Provenance
+    // ШАГ 1: extract_brief с жесткой изоляцией неподтверждённых значений
     const step1Start = timestamp();
     let facts: VerifiedFacts;
+    let modelSuggestions: ModelSuggestion[] = [];
+
+    // Базовое детерминированное извлечение проверенных фактов
+    const deterministicExtract = executeExtractBrief({ raw_query: query });
 
     if (engineMode === 'hybrid' && hybridExtractionResult) {
-      // ИСПОЛЬЗУЕМ РЕЗУЛЬТАТ LLM С ОБЯЗАТЕЛЬНОЙ ПРОВЕРКОЙ PROVENANCE
-      facts = this.buildFactsFromLlm(hybridExtractionResult, query);
+      // Валидируем предложения модели по evidence spans
+      const validated = this.validateLlmSuggestionsWithEvidence(
+        hybridExtractionResult,
+        query,
+        deterministicExtract.facts
+      );
+      facts = validated.facts;
+      modelSuggestions = validated.suggestions;
 
       traces.push({
         step: 1,
         tool_name: 'extract_brief',
-        description: 'Сборка фактов из предложения LLM с проверкой текста пользователя',
+        description: 'Верификация фактов модели по evidence spans: неподтвержденные вынесены в suggestions',
         timestamp: step1Start,
         status: 'SUCCESS',
         input_summary: { hybrid_used: true },
         output_summary: {
-          city: `${facts.city.value} [${facts.city.source}]`,
-          property_type: `${facts.property_type.value} [${facts.property_type.source}]`,
-          area_sqm: `${facts.area_sqm.value} [${facts.area_sqm.source}]`,
-          timeline_months: `${facts.target_timeline_months.value} [${facts.target_timeline_months.source}]`,
+          verified_facts_count: Object.values(facts).filter((f) => typeof f === 'object' && f && 'value' in f && f.value !== null).length,
+          model_suggestions_count: modelSuggestions.length,
         },
-        policy_decision: 'FACT_PROVENANCE_ENFORCED: Факты маркированы MODEL_EXTRACTION; статус USER присвоен только при подтверждении в тексте.',
+        policy_decision: 'STRICT_FACT_ISOLATION: В VerifiedFacts попали ТОЛЬКО подтверждённые пользователем данные.',
       });
     } else {
-      // ДЕТЕРМИНИРОВАННОЕ ИЗВЛЕЧЕНИЕ (ПРАВИЛА И ЭВРИСТИКИ)
-      const extractResult = executeExtractBrief({ raw_query: query });
-      facts = extractResult.facts;
-
+      facts = deterministicExtract.facts;
       traces.push({
         step: 1,
         tool_name: 'extract_brief',
@@ -209,23 +201,38 @@ export class AgentOrchestrator {
       });
     }
 
-    // ШАГ 2: identify_missing_fields
+    // ШАГ 2: identify_missing_fields с объединением неизвестных от модели без дублей
     const step2Start = timestamp();
     const missingResult = executeIdentifyMissingFields({
       raw_query: query,
       facts,
     });
-    
+
+    let mergedUnknowns = [...missingResult.missing_fields];
+    if (engineMode === 'hybrid' && hybridExtractionResult && hybridExtractionResult.unknown_fields) {
+      for (const u of hybridExtractionResult.unknown_fields) {
+        if (!mergedUnknowns.some((existing) => existing.id === u.id)) {
+          mergedUnknowns.push({
+            id: u.id,
+            label: u.label,
+            status: 'UNKNOWN',
+            priority: u.priority || 'HIGH',
+            explanation: u.explanation,
+          });
+        }
+      }
+    }
+
     traces.push({
       step: 2,
       tool_name: 'identify_missing_fields',
-      description: 'Выявление критических неизвестных (состояние, бюджет, сети, доступ)',
+      description: 'Объединение неизвестных (базовые строительные пробелы + специфика от модели)',
       timestamp: step2Start,
       status: 'SUCCESS',
       input_summary: { extracted_facts: 4 },
       output_summary: {
-        unknowns_count: missingResult.missing_fields.length,
-        critical_unknowns: missingResult.critical_count,
+        total_unknowns: mergedUnknowns.length,
+        critical_count: mergedUnknowns.filter((m) => m.priority === 'CRITICAL').length,
       },
       policy_decision: 'STRICT_ISOLATION: Пробелы изолированы как UNKNOWN и не маркируются фактами.',
     });
@@ -234,7 +241,7 @@ export class AgentOrchestrator {
     const step3Start = timestamp();
     const riskResult = executeRiskCheck({
       facts,
-      missing: missingResult.missing_fields,
+      missing: mergedUnknowns,
     });
 
     const step3Status = policyNotice ? 'GUARD_INTERCEPTED' : 'SUCCESS';
@@ -260,7 +267,7 @@ export class AgentOrchestrator {
     const step4Start = timestamp();
     const readinessResult = executeReadinessCheck({
       facts,
-      missing: missingResult.missing_fields,
+      missing: mergedUnknowns,
     });
 
     traces.push({
@@ -277,16 +284,14 @@ export class AgentOrchestrator {
       policy_decision: 'EXTERNAL_ACTIONS_LOCKED: Тендер и контакт с подрядчиками заблокированы.',
     });
 
-    // ШАГ 5: propose_next_action (с поддержкой вопросов от LLM или детерминированных)
+    // ШАГ 5: propose_next_action (вопросы от модели или детерминированные)
     const step5Start = timestamp();
     let questions: SmartQuestion[];
-    let pipeline: PipelineStage[];
-
     const deterministicAction = executeProposeNextAction({
       facts,
-      missing: missingResult.missing_fields,
+      missing: mergedUnknowns,
     });
-    pipeline = deterministicAction.pipeline;
+    const pipeline: PipelineStage[] = deterministicAction.pipeline;
 
     if (
       engineMode === 'hybrid' && 
@@ -294,7 +299,6 @@ export class AgentOrchestrator {
       hybridExtractionResult.questions && 
       hybridExtractionResult.questions.length > 0
     ) {
-      // Используем вопросы, предложенные LLM (строго до 3 штук)
       questions = hybridExtractionResult.questions.slice(0, 3).map((q, idx) => ({
         id: q.id || `q_llm_${idx + 1}`,
         question: q.question,
@@ -326,7 +330,7 @@ export class AgentOrchestrator {
     let workbrief_draft: WorkBriefDraft | null = null;
     if (createDraft) {
       const step6Start = timestamp();
-      const unknownDescriptions = missingResult.missing_fields
+      const unknownDescriptions = mergedUnknowns
         .filter((m) => m.status !== 'VERIFIED')
         .map((m) => `${m.label}: ${m.explanation}`);
 
@@ -362,7 +366,8 @@ export class AgentOrchestrator {
       engine_badge: engineBadge,
       policy_notice: policyNotice,
       facts,
-      unknowns: missingResult.missing_fields,
+      model_suggestions: modelSuggestions,
+      unknowns: mergedUnknowns,
       questions,
       risks: riskResult.risks,
       pipeline,
@@ -374,89 +379,163 @@ export class AgentOrchestrator {
   }
 
   /**
-   * Сборка VerifiedFacts из предложения LLM с обязательной проверкой Provenance:
-   * Факт обязан иметь source: MODEL_EXTRACTION; он становится USER ТОЛЬКО если явно подтверждён в тексте пользователя!
+   * Проверка предложений LLM по evidence spans:
+   * 1. Значение попадает в VerifiedFacts (source: 'USER') ТОЛЬКО если evidence span присутствует в запросе
+   *    и удовлетворяет семантическим правилам (не просто цифра).
+   * 2. Все неподтверждённые значения переносятся в model_suggestions.
+   * 3. Правило «квартира подтверждает 2-комнатную» удалено.
    */
-  private static buildFactsFromLlm(llm: HybridExtraction, rawQuery: string): VerifiedFacts {
+  private static validateLlmSuggestionsWithEvidence(
+    llm: HybridExtraction,
+    rawQuery: string,
+    deterministicFacts: VerifiedFacts
+  ): { facts: VerifiedFacts; suggestions: ModelSuggestion[] } {
     const q = rawQuery.toLowerCase();
+    const suggestions: ModelSuggestion[] = [];
 
     // 1. Город
-    let citySource: FactSource = 'MODEL_EXTRACTION';
+    let verifiedCity = deterministicFacts.city;
     if (llm.city) {
       const cityLower = llm.city.toLowerCase();
-      if (q.includes(cityLower) || (cityLower.startsWith('астан') && q.includes('астан')) || (cityLower.startsWith('алмат') && q.includes('алмат'))) {
-        citySource = 'USER';
+      const evidence = (llm.city_evidence || llm.city).toLowerCase().trim();
+      const isConfirmed = q.includes(evidence) && (
+        (cityLower.startsWith('астан') && q.includes('астан')) ||
+        (cityLower.startsWith('алмат') && q.includes('алмат')) ||
+        (cityLower.startsWith('шымкент') && q.includes('шымкент')) ||
+        (cityLower.startsWith('москв') && q.includes('москв')) ||
+        (cityLower.startsWith('санкт-петербург') && (q.includes('санкт-петербург') || q.includes('питер'))) ||
+        (cityLower.startsWith('казан') && q.includes('казан'))
+      );
+
+      if (isConfirmed) {
+        verifiedCity = {
+          value: llm.city,
+          label: 'Город объекта',
+          source: 'USER',
+          raw_token: evidence,
+        };
+      } else {
+        suggestions.push({
+          field: 'city',
+          label: 'Город объекта',
+          proposed_value: llm.city,
+          reason: 'Город предложен моделью, но отсутствует в тексте запроса',
+        });
       }
-    } else {
-      citySource = 'UNKNOWN';
     }
 
-    // 2. Тип объекта
-    let propSource: FactSource = 'MODEL_EXTRACTION';
+    // 2. Тип объекта и планировка
+    let verifiedProperty = deterministicFacts.property_type;
     if (llm.property_type) {
       const pLower = llm.property_type.toLowerCase();
-      if (
-        (/двухкомнат|2-комнат|2к|двушк/.test(q) && /2|двух/.test(pLower)) ||
-        (/однокомнат|1-комнат|1к|студи/.test(q) && /1|одн|студи/.test(pLower)) ||
-        (/трехкомнат|трёхкомнат|3-комнат|3к/.test(q) && /3|трех|трёх/.test(pLower)) ||
-        (q.includes('квартир') && pLower.includes('квартир'))
-      ) {
-        propSource = 'USER';
+      const evidence = (llm.property_type_evidence || llm.property_type).toLowerCase().trim();
+      const hasEvidence = q.includes(evidence);
+
+      // ВНИМАНИЕ: Слово «квартира» НЕ подтверждает «2-комнатную»!
+      const isTwoRoom = /2-комнат|двухкомнат|2к\b|двушк/.test(q) && /2|двух/.test(pLower);
+      const isOneRoom = /1-комнат|однокомнат|1к\b|студи/.test(q) && /1|одн|студи/.test(pLower);
+      const isThreeRoom = /3-комнат|трехкомнат|трёхкомнат|3к\b/.test(q) && /3|трех|трёх/.test(pLower);
+      const isGenericFlat = q.includes('квартир') && !/2|3|1|студи/.test(pLower);
+
+      if (hasEvidence && (isTwoRoom || isOneRoom || isThreeRoom || isGenericFlat)) {
+        verifiedProperty = {
+          value: llm.property_type,
+          label: 'Тип объекта',
+          source: 'USER',
+          raw_token: evidence,
+        };
+      } else {
+        suggestions.push({
+          field: 'property_type',
+          label: 'Тип и планировка',
+          proposed_value: llm.property_type,
+          reason: 'Планировка предложена моделью, но не подтверждена сообщением пользователя',
+        });
       }
-    } else {
-      propSource = 'UNKNOWN';
     }
 
-    // 3. Площадь
-    let areaSource: FactSource = 'MODEL_EXTRACTION';
+    // 3. Площадь (area_sqm)
+    let verifiedArea = deterministicFacts.area_sqm;
     if (typeof llm.area_sqm === 'number') {
-      const numStr = String(llm.area_sqm);
-      if (q.includes(numStr)) {
-        areaSource = 'USER';
+      const evidence = (llm.area_sqm_evidence || `${llm.area_sqm}`).toLowerCase().trim();
+      const hasEvidence = q.includes(evidence);
+      // Проверяем, что это не просто цифра (например, кв. 58), а именно площадь с маркером м2/кв.м
+      const areaRegex = /(\d+(?:[.,]\d+)?)\s*(?:м2|м²|кв\.?\s*м|кв\.?\s*метров|метров|квадратов)/i;
+      const matchedArea = q.match(areaRegex);
+
+      if (hasEvidence && matchedArea && parseFloat(matchedArea[1].replace(',', '.')) === llm.area_sqm) {
+        verifiedArea = {
+          value: llm.area_sqm,
+          label: 'Площадь из сообщения',
+          source: 'USER',
+          raw_token: matchedArea[0],
+        };
+      } else {
+        suggestions.push({
+          field: 'area_sqm',
+          label: 'Площадь объекта',
+          proposed_value: `${llm.area_sqm} м²`,
+          reason: 'Число предложено моделью, но контекст площади не подтверждён текстом',
+        });
       }
-    } else {
-      areaSource = 'UNKNOWN';
     }
 
-    // 4. Срок въезда
-    let timeSource: FactSource = 'MODEL_EXTRACTION';
+    // 4. Срок въезда (target_timeline_months)
+    let verifiedTimeline = deterministicFacts.target_timeline_months;
     if (typeof llm.target_timeline_months === 'number') {
-      const timeStr = String(llm.target_timeline_months);
-      if (q.includes(timeStr) && /месяц|мес|нед|год/.test(q)) {
-        timeSource = 'USER';
+      const evidence = (llm.target_timeline_months_evidence || `${llm.target_timeline_months}`).toLowerCase().trim();
+      const hasEvidence = q.includes(evidence);
+      const timelineRegex = /(?:заехать\s+через|срок\s*(?:до)?|готовность\s+через|через)\s*(\d+)\s*(месяц\w*|мес|нед\w*|дней|дня|год\w*)/i;
+      const matchedTimeline = q.match(timelineRegex);
+
+      if (hasEvidence && matchedTimeline) {
+        verifiedTimeline = {
+          value: llm.target_timeline_months,
+          label: 'Желаемый срок въезда',
+          source: 'USER',
+          raw_token: matchedTimeline[0],
+        };
+      } else {
+        suggestions.push({
+          field: 'target_timeline_months',
+          label: 'Желаемый срок въезда',
+          proposed_value: `${llm.target_timeline_months} мес.`,
+          reason: 'Срок предложен моделью, но не подтверждён формулировкой пользователя',
+        });
       }
-    } else {
-      timeSource = 'UNKNOWN';
+    }
+
+    // 5. Пожелания (special_requests): НЕ записывать как пожелания заказчика до подтверждения
+    const verifiedSpecial: string[] = [];
+    if (Array.isArray(llm.special_requests)) {
+      for (const item of llm.special_requests) {
+        const text = typeof item === 'string' ? item : item.request;
+        const evidence = typeof item === 'object' && item.evidence_text ? item.evidence_text : text;
+        if (q.includes(evidence.toLowerCase().trim())) {
+          verifiedSpecial.push(text);
+        } else {
+          suggestions.push({
+            field: 'special_request',
+            label: 'Пожелание по дизайну',
+            proposed_value: text,
+            reason: 'Пожелание предложено AI, но не озвучено пользователем',
+          });
+        }
+      }
     }
 
     return {
-      city: {
-        value: llm.city || null,
-        label: citySource === 'USER' ? 'Город объекта' : 'Город (предложено AI)',
-        source: citySource,
+      facts: {
+        city: verifiedCity,
+        property_type: verifiedProperty,
+        area_sqm: verifiedArea,
+        target_timeline_months: verifiedTimeline,
+        special_requests: verifiedSpecial.length > 0 ? verifiedSpecial : deterministicFacts.special_requests,
       },
-      property_type: {
-        value: llm.property_type || null,
-        label: propSource === 'USER' ? 'Тип объекта' : 'Тип (предложено AI)',
-        source: propSource,
-      },
-      area_sqm: {
-        value: typeof llm.area_sqm === 'number' ? llm.area_sqm : null,
-        label: areaSource === 'USER' ? 'Площадь из сообщения' : 'Площадь (предложено AI)',
-        source: areaSource,
-      },
-      target_timeline_months: {
-        value: typeof llm.target_timeline_months === 'number' ? llm.target_timeline_months : null,
-        label: timeSource === 'USER' ? 'Желаемый срок въезда' : 'Срок (предложено AI)',
-        source: timeSource,
-      },
-      special_requests: Array.isArray(llm.special_requests) ? llm.special_requests : [],
+      suggestions,
     };
   }
 
-  /**
-   * Серверный вызов OpenAI с таймаутом и требованием чистого JSON.
-   */
   private static async callOpenAiAdapter(query: string): Promise<unknown> {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OPENAI_API_KEY отсутствует на сервере');
@@ -481,15 +560,19 @@ export class AgentOrchestrator {
                 'Extract entities from the user renovation request into JSON conforming to this schema:\n' +
                 '{\n' +
                 '  "city": string | null,\n' +
+                '  "city_evidence": string | null,\n' +
                 '  "property_type": string | null,\n' +
+                '  "property_type_evidence": string | null,\n' +
                 '  "area_sqm": number | null,\n' +
+                '  "area_sqm_evidence": string | null,\n' +
                 '  "target_timeline_months": number | null,\n' +
-                '  "special_requests": string[],\n' +
+                '  "target_timeline_months_evidence": string | null,\n' +
+                '  "special_requests": [ { "request": string, "evidence_text": string } ],\n' +
                 '  "unknown_fields": [ { "id": string, "label": string, "explanation": string, "priority": "CRITICAL" | "HIGH" | "MEDIUM" } ],\n' +
                 '  "questions": [ { "id": string, "question": string, "category": "STATE" | "ACCESS" | "ENGINEERING" | "BUDGET", "why_needed": string, "recommended_options": string[] } ]\n' +
                 '}\n' +
                 'Strict Rules:\n' +
-                '- Never estimate or promise prices, costs, budgets, or financial numbers.\n' +
+                '- Never estimate or promise prices, costs, budgets, or financial numbers in any field.\n' +
                 '- Never output external actions, ordering, or contracts.\n' +
                 '- Return at most 3 clarifying questions.\n' +
                 '- Return ONLY valid JSON.',
