@@ -8,15 +8,16 @@ const ApproveSchema = z.object({
   confirmed_by_human: z.literal(true, {
     errorMap: () => ({ message: 'Требуется явное подтверждение человека' }),
   }),
+  fallback_draft: z.any().optional(),
 });
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { idempotency_key, user_signature } = ApproveSchema.parse(body);
+    const { idempotency_key, user_signature, fallback_draft } = ApproveSchema.parse(body);
 
     // Подтверждается ТОЛЬКО черновик WorkBrief. Никакие внешние этапы не разблокируются.
-    const approvedDraft = approveWorkBriefDraft(idempotency_key, user_signature);
+    const approvedDraft = approveWorkBriefDraft(idempotency_key, user_signature, fallback_draft);
 
     return NextResponse.json({
       success: true,

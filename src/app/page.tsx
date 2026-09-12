@@ -9,19 +9,23 @@ import { SmartQuestions } from '@/components/SmartQuestions';
 import { MeasurementRationale } from '@/components/MeasurementRationale';
 import { ToolTimeline } from '@/components/ToolTimeline';
 import { WorkBriefModal } from '@/components/WorkBriefModal';
+import { WorkBriefDocumentView } from '@/components/WorkBriefDocumentView';
+import { MeasurementBookingModal } from '@/components/MeasurementBookingModal';
 import { AgentRunResponse, ModelSuggestion } from '@/types/agent';
 import { 
   Play, 
   Mic, 
-  MicOff, 
   Sparkles, 
   ShieldAlert, 
   FileText, 
   RefreshCw, 
   Check, 
   AlertCircle,
-  ArrowRight,
-  Compass
+  Calendar,
+  FileSignature,
+  Search,
+  CheckCircle2,
+  Users
 } from 'lucide-react';
 
 const DEFAULT_SCENARIO = 'Купил двухкомнатную квартиру в Астане, 58 м². Хочу современный ремонт, заехать через 4 месяца, бюджет пока не понимаю';
@@ -29,23 +33,25 @@ const DEFAULT_SCENARIO = 'Купил двухкомнатную квартиру
 const PRESETS = [
   {
     id: 'astana-58',
-    label: 'Главный сценарий: Астана 58 м²',
+    label: 'Астана · 58 м²',
     badge: 'Конкурсный',
     text: 'Купил двухкомнатную квартиру в Астане, 58 м². Хочу современный ремонт, заехать через 4 месяца, бюджет пока не понимаю',
   },
   {
     id: 'almaty-whitebox',
-    label: 'Новостройка White Box: 82 м²',
+    label: 'Алматы · 82 м² White Box',
     badge: 'Предчистовая',
     text: 'Квартира 82 м² в Алматы, отделка предчистовая White Box. Нужно сделать разводку под кондиционеры и чистовые работы за 3 месяца.',
   },
   {
     id: 'secondary-demo',
-    label: 'Вторичный фонд: 44 м²',
+    label: 'Вторичка · 44 м²',
     badge: 'Демонтаж',
     text: 'Вторичка 44 кв.м, старый дом. Нужен демонтаж перегородок, замена проводки и сантехники, бюджет пока уточняется.',
   },
 ];
+
+type ActiveTab = 'brief' | 'audit' | 'questions' | 'team';
 
 export default function Home() {
   const [query, setQuery] = useState(DEFAULT_SCENARIO);
@@ -53,10 +59,13 @@ export default function Home() {
   const [agentData, setAgentData] = useState<AgentRunResponse | null>(null);
   const [userAnswers, setUserAnswers] = useState<Record<string, string>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [bookedSlot, setBookedSlot] = useState<string | null>(null);
   const [isApproving, setIsApproving] = useState(false);
   const [isHumanApproved, setIsHumanApproved] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('brief');
   const [idempotencyKey, setIdempotencyKey] = useState<string>(() => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       return `session-${crypto.randomUUID()}`;
@@ -64,7 +73,7 @@ export default function Home() {
     return `session-${Math.random().toString(36).substring(2, 11)}`;
   });
 
-  // Мгновенный запуск при открытии (результат виден жюри за 5 секунд)
+  // Автоматический первичный запуск при открытии
   useEffect(() => {
     runAgentAnalysis(DEFAULT_SCENARIO, {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,6 +124,7 @@ export default function Home() {
     setQuery(presetText);
     setUserAnswers({});
     setIsHumanApproved(false);
+    setBookedSlot(null);
     setApiError(null);
     setIdempotencyKey(newKey);
     runAgentAnalysis(presetText, {}, newKey);
@@ -138,6 +148,7 @@ export default function Home() {
           idempotency_key: agentData.workbrief_draft.idempotency_key,
           user_signature: signature,
           confirmed_by_human: true,
+          fallback_draft: agentData.workbrief_draft,
         }),
       });
 
@@ -147,7 +158,6 @@ export default function Home() {
       }
 
       const data = await res.json();
-      // Строгая синхронизация: используем approved_draft из ответа сервера
       if (data.approved_draft) {
         setIsHumanApproved(true);
         setAgentData((prev) => {
@@ -184,7 +194,6 @@ export default function Home() {
         const errJson = await res.json().catch(() => ({}));
         const errMsg = errJson.error || 'Не удалось подтвердить предложение';
         setApiError(errMsg);
-        console.error('Confirm suggestion failed:', errJson);
         return;
       }
 
@@ -203,7 +212,6 @@ export default function Home() {
         };
       });
 
-      // Синхронизируем статус подтверждения человека с ревизией драфта
       if (data.workbrief_draft) {
         setIsHumanApproved(data.workbrief_draft.status === 'APPROVED_BY_HUMAN');
       }
@@ -223,6 +231,10 @@ export default function Home() {
         ),
       };
     });
+  };
+
+  const handleConfirmBooking = (slot: string, address: string) => {
+    setBookedSlot(slot);
   };
 
   const toggleSpeechInput = () => {
@@ -257,16 +269,21 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col text-slate-100">
+    <div className="min-h-screen flex flex-col text-slate-100 bg-[#07080b]">
       <Header
-        engineBadge={agentData?.engine_badge || 'Demo mode · Rules + Safety Guard'}
+        engineBadge={agentData?.engine_badge || 'Автономный контур'}
         engineMode={agentData?.engine_mode || 'deterministic'}
+        isHumanApproved={isHumanApproved}
+        onOpenWorkBrief={() => {
+          setActiveTab('brief');
+          setIsModalOpen(true);
+        }}
       />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* ВИДИМЫЙ БАННЕР ОШИБКИ API */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* Error Banner */}
         {apiError && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between shadow-card-dark">
+          <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span className="font-medium">{apiError}</span>
@@ -281,174 +298,210 @@ export default function Home() {
           </div>
         )}
 
-        {/* HERO SECTION: ЗАПРОС СЛЕВА | «ЭКСПРЕСС-АУДИТ» СПРАВА */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
-          {/* Слева: командная консоль ввода (7 колонок) */}
-          <div className="md:col-span-7 specular-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <label className="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                  Исходный запрос заказчика
-                </label>
-                <button
-                  onClick={toggleSpeechInput}
-                  className={`btn-press flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg border font-mono cursor-pointer ${
-                    isListening
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                      : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
-                  }`}
-                >
-                  {isListening ? (
-                    <div className="flex items-center gap-1 h-3.5">
-                      <span className="w-1 bg-rose-400 rounded-full wave-bar-1" />
-                      <span className="w-1 bg-rose-400 rounded-full wave-bar-2" />
-                      <span className="w-1 bg-rose-400 rounded-full wave-bar-3" />
-                      <span className="w-1 bg-rose-400 rounded-full wave-bar-4" />
-                      <span className="text-[11px] text-rose-300 ml-1">Запись...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <Mic className="w-3.5 h-3.5 text-sky-400" />
-                      <span>Диктовать голос</span>
-                    </>
-                  )}
-                </button>
-              </div>
+        {/* HERO PRODUCT COMMAND SECTION (APPLE STYLE) */}
+        <section className="text-center space-y-3 pt-2 pb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] text-slate-300">
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+            <span>Автономный аудит и техническое задание ремонта</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white font-sans">
+            Интеллектуальный контроль вашего объекта
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto leading-relaxed font-normal">
+            Изоляция подтверждённых фактов от шума, защита от скрытых строительных рисков и формирование юридически чистого WorkBrief до выезда инженера.
+          </p>
+        </section>
 
-              <textarea
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                rows={3}
-                placeholder="Введите параметры объекта или пожелания свободным языком..."
-                className="w-full text-xs p-3.5 rounded-xl border border-white/10 focus:border-sky-500/60 focus:outline-hidden font-sans text-white bg-obsidian-950/80 placeholder-slate-500 resize-none leading-relaxed transition-colors"
-              />
-
-              {/* Demo сценарии */}
-              <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
-                {PRESETS.map((p) => {
-                  const isSelected = query === p.text;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => handleSelectPreset(p.text)}
-                      className={`btn-press text-[11px] px-3 py-1.5 rounded-lg whitespace-nowrap border font-mono cursor-pointer flex items-center gap-1.5 ${
-                        isSelected
-                          ? 'bg-sky-500 text-obsidian-950 border-sky-400 shadow-glow-cyan font-bold'
-                          : 'bg-obsidian-950/90 hover:bg-obsidian-850 text-slate-300 border-white/10'
-                      }`}
-                    >
-                      <span className="opacity-60 text-[9px] uppercase">[{p.badge}]</span>
-                      <span>{p.label.split(':')[0]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Главный CTA: Разобрать запрос агентами */}
-            <div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-2">
-              <button
-                onClick={() => runAgentAnalysis(query, userAnswers)}
-                disabled={isRunning || query.length < 3}
-                className="btn-press flex-1 py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-obsidian-950 text-xs font-bold flex items-center justify-center gap-2 shadow-glow-cyan disabled:bg-slate-800 disabled:text-slate-500 disabled:border-white/5 cursor-pointer"
-              >
-                {isRunning ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-obsidian-950" />
-                ) : (
-                  <Play className="w-3.5 h-3.5 fill-obsidian-950 text-obsidian-950" />
-                )}
-                <span>{isRunning ? 'Анализ роем агентов...' : 'Разобрать запрос роем агентов'}</span>
-              </button>
-            </div>
+        {/* APPLE LIQUID GLASS INPUT CAPSULE */}
+        <div className="p-2 sm:p-2.5 rounded-2xl bg-[#0c0e15] border border-white/[0.08] shadow-2xl space-y-3">
+          <div className="relative">
+            <textarea
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              rows={2}
+              placeholder="Опишите параметры объекта: город, площадь, срок, состояние отделки..."
+              className="w-full text-xs sm:text-sm p-3.5 pr-24 rounded-xl border border-white/[0.06] focus:border-sky-500/50 focus:outline-hidden font-sans text-white bg-black/40 placeholder-slate-500 resize-none leading-relaxed transition-colors"
+            />
+            <button
+              type="button"
+              onClick={toggleSpeechInput}
+              className={`btn-press absolute right-3 top-3 flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border font-mono cursor-pointer ${
+                isListening
+                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                  : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border-white/[0.08]'
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5 text-sky-400" />
+              <span className="hidden sm:inline">{isListening ? 'Слушаю...' : 'Голос'}</span>
+            </button>
           </div>
 
-          {/* Справа: Карточка «Экспресс-аудит объекта» (5 колонок) */}
-          <div className="md:col-span-5 specular-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-white/5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-                    Экспресс-аудит объекта
-                  </h3>
-                </div>
-                <span className="text-[10px] text-sky-400 font-mono bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">
-                  Время: ~90 сек
-                </span>
-              </div>
-
-              {agentData ? (
-                <div className="space-y-2.5 text-xs">
-                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-obsidian-950/80 border border-white/5">
-                    <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-white block">4 подтверждённых факта:</span>
-                      <span className="text-slate-400 block text-[11px] font-mono mt-0.5">
-                        {agentData.facts.city.value || 'Город'}, {agentData.facts.property_type.value || 'квартира'}, {agentData.facts.area_sqm.value} м², {agentData.facts.target_timeline_months.value} мес.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-obsidian-950/80 border border-white/5">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-white block">4 критических неизвестных:</span>
-                      <span className="text-slate-400 block text-[11px] mt-0.5">
-                        Состояние стяжки, бюджетный коридор, стояки ХВС/ГВС, доступ.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200 leading-snug">
-                    <strong className="text-white block mb-0.5 font-mono">Safety Notice:</strong> Финальная стоимость не формируется до инструментального обмера специалистом.
-                  </div>
-                </div>
-              ) : (
-                <div className="text-xs text-slate-500 py-6 text-center font-mono">
-                  Запустите разбор для инициализации роя агентов...
-                </div>
-              )}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+            {/* Fast Scenario Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              {PRESETS.map((p) => {
+                const isSelected = query === p.text;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => handleSelectPreset(p.text)}
+                    className={`btn-press text-[11px] px-3 py-1.5 rounded-full whitespace-nowrap border font-medium cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-white text-black border-white shadow-sm font-semibold'
+                        : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/[0.06]'
+                    }`}
+                  >
+                    <span>{p.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {agentData?.workbrief_draft && (
-              <div className="mt-3 pt-3 border-t border-white/5">
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className={`btn-press w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer ${
-                    isHumanApproved
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-glow-emerald hover:bg-emerald-500/30'
-                      : 'bg-white/10 hover:bg-white/15 text-white border border-white/15'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>{isHumanApproved ? 'WorkBrief Rev 1.0 утверждён (Открыть)' : 'Открыть черновик WorkBrief & Approval'}</span>
-                </button>
-              </div>
-            )}
+            {/* Primary Action Button */}
+            <button
+              onClick={() => runAgentAnalysis(query, userAnswers)}
+              disabled={isRunning || query.length < 3}
+              className="btn-press shrink-0 py-2 px-5 rounded-xl bg-sky-500 hover:bg-sky-400 text-obsidian-950 text-xs font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:bg-slate-800 disabled:text-slate-500"
+            >
+              {isRunning ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Play className="w-3.5 h-3.5 fill-obsidian-950" />
+              )}
+              <span>{isRunning ? 'Анализ объекта...' : 'Сформировать ТЗ'}</span>
+            </button>
           </div>
         </div>
 
-        {/* POLICY GUARD NOTICE: ЕСЛИ БЫЛ ЗАПРОС НА ЦЕНУ */}
+        {/* POLICY GUARD WARNING */}
         {agentData?.policy_notice && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-start gap-3 text-xs shadow-card-dark">
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-200 flex items-start gap-3 text-xs shadow-md">
             <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <strong className="block text-white font-bold text-sm">
-                Запрос на точную цену перехвачен защитным контуром
+              <strong className="block text-white font-semibold">
+                Защитный контур перехватил запрос на фиксацию стоимости
               </strong>
-              <span className="text-amber-200/90 text-xs leading-relaxed block mt-1">
-                {agentData.policy_notice.user_warning} Финальная смета заблокирована до инструментального обмера специалистом.
+              <span className="text-amber-200/90 text-xs leading-relaxed block mt-0.5">
+                {agentData.policy_notice.user_warning} Финальная смета формируется строго после инструментального выезда инженера.
               </span>
             </div>
           </div>
         )}
 
-        {/* РОЙ АВТОНОМНЫХ АГЕНТОВ (SWARM SHOWCASE & AVATARS) */}
-        <AgentSwarmTeam
-          isHumanApproved={isHumanApproved}
-          onOpenWorkBrief={() => setIsModalOpen(true)}
-        />
+        {/* APPLE SEGMENTED CONTROL TABS */}
+        <div className="flex items-center justify-center no-print">
+          <div className="p-1 rounded-xl bg-[#0e111a] border border-white/[0.08] inline-flex gap-1">
+            <button
+              onClick={() => setActiveTab('brief')}
+              className={`btn-press flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                activeTab === 'brief'
+                  ? 'bg-white text-black shadow-xs font-semibold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <FileSignature className="w-3.5 h-3.5" />
+              <span>Техническое задание</span>
+              {isHumanApproved && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={`btn-press flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                activeTab === 'audit'
+                  ? 'bg-white text-black shadow-xs font-semibold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Факты и риски</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('questions')}
+              className={`btn-press flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                activeTab === 'questions'
+                  ? 'bg-white text-black shadow-xs font-semibold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Уточнения</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/[0.1] text-slate-300">
+                3
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('team')}
+              className={`btn-press flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                activeTab === 'team'
+                  ? 'bg-white text-black shadow-xs font-semibold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Рой специалистов</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/[0.1] text-slate-300">
+                6
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* TAB 1: WORKBRIEF SPECIFICATION (DIRECT PRODUCT OBJECT) */}
+        {activeTab === 'brief' && agentData?.workbrief_draft && (
+          <div className="space-y-4">
+            <WorkBriefDocumentView
+              draft={agentData.workbrief_draft}
+              onApprove={handleApproveWorkBrief}
+              isApproving={isApproving}
+              onOpenBooking={() => setIsBookingOpen(true)}
+              bookingConfirmedDate={bookedSlot}
+            />
+          </div>
+        )}
+
+        {/* TAB 2: AUDIT & RISKS */}
+        {activeTab === 'audit' && agentData && (
+          <div className="space-y-6">
+            <FactsMatrix
+              facts={agentData.facts}
+              unknowns={agentData.unknowns}
+              modelSuggestions={agentData.model_suggestions}
+              onConfirmSuggestion={handleConfirmSuggestion}
+              onDismissSuggestion={handleDismissSuggestion}
+            />
+
+            <MeasurementRationale
+              reasons={agentData.safety_notice.points}
+            />
+          </div>
+        )}
+
+        {/* TAB 3: SMART QUESTIONS */}
+        {activeTab === 'questions' && agentData && (
+          <div className="space-y-4">
+            <SmartQuestions
+              questions={agentData.questions}
+              userAnswers={userAnswers}
+              onAnswerQuestion={handleAnswerQuestion}
+            />
+          </div>
+        )}
+
+        {/* TAB 4: SWARM TEAM */}
+        {activeTab === 'team' && (
+          <div className="space-y-4">
+            <AgentSwarmTeam
+              isHumanApproved={isHumanApproved}
+              onOpenWorkBrief={() => {
+                setActiveTab('brief');
+              }}
+            />
+          </div>
+        )}
 
         {/* PROGRESS-LINE: ТОНКИЙ ГОРИЗОНТАЛЬНЫЙ РЕГЛАМЕНТ */}
         {agentData && (
@@ -458,83 +511,32 @@ export default function Home() {
           />
         )}
 
-        {/* СТРОГО ПО ПОРЯДКУ ИЗ ТЗ: ФАКТЫ И НЕИЗВЕСТНЫЕ */}
-        {agentData && (
-          <FactsMatrix
-            facts={agentData.facts}
-            unknowns={agentData.unknowns}
-            modelSuggestions={agentData.model_suggestions}
-            onConfirmSuggestion={handleConfirmSuggestion}
-            onDismissSuggestion={handleDismissSuggestion}
-          />
-        )}
-
-        {/* СТРОГО ПО ПОРЯДКУ ИЗ ТЗ: 3 УМНЫХ ВОПРОСА */}
-        {agentData && (
-          <SmartQuestions
-            questions={agentData.questions}
-            userAnswers={userAnswers}
-            onAnswerQuestion={handleAnswerQuestion}
-          />
-        )}
-
-        {/* СТРОГО ПО ПОРЯДКУ ИЗ ТЗ: СЛЕДУЮЩИЙ ШАГ И WORKBRIEF CTA */}
-        {agentData && (
-          <div className="specular-card rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
-                <Compass className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-mono uppercase text-amber-400 font-bold block">
-                  Рекомендованный следующий шаг • Агент «Виктор»
-                </span>
-                <h4 className="text-sm font-bold text-white mt-0.5">
-                  Инструментальный обмер специалистом
-                </h4>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Согласовать дату доступа на объект и зафиксировать геометрию стен, стояков и стяжки до расчёта сметы.
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className={`btn-press px-5 py-2.5 rounded-xl text-xs font-bold text-obsidian-950 flex items-center gap-2 shadow-glow-emerald shrink-0 cursor-pointer ${
-                isHumanApproved 
-                  ? 'bg-emerald-400 hover:bg-emerald-300' 
-                  : 'bg-emerald-500 hover:bg-emerald-400'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>{isHumanApproved ? 'WorkBrief утверждён (Rev 1.0)' : 'Черновик WorkBrief & Approval'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* СТРОГО ПО ПОРЯДКУ ИЗ ТЗ: SAFETY NOTICE («ПОЧЕМУ ЦЕНА ПОКА НЕ ФОРМИРУЕТСЯ») */}
-        {agentData && (
-          <MeasurementRationale
-            reasons={agentData.safety_notice.points}
-          />
-        )}
-
-        {/* СТРОГО ПО ПОРЯДКУ ИЗ ТЗ: AUDIT TRACE (СПРЯТАН В DISCLOSURE) */}
+        {/* AUDIT TRACE (DISCLOSURE) */}
         {agentData && (
           <ToolTimeline traces={agentData.tool_traces} />
         )}
       </main>
 
-      {/* МОДАЛЬНОЕ ОКНО WORKBRIEF И HUMAN APPROVAL */}
+      {/* MODAL WINDOWS */}
       <WorkBriefModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         draft={agentData?.workbrief_draft || null}
         onApprove={handleApproveWorkBrief}
         isApproving={isApproving}
+        onOpenBooking={() => {
+          setIsModalOpen(false);
+          setIsBookingOpen(true);
+        }}
+        bookingConfirmedDate={bookedSlot}
+      />
+
+      <MeasurementBookingModal
+        isOpen={isBookingOpen}
+        onClose={() => setIsBookingOpen(false)}
+        onConfirm={handleConfirmBooking}
+        currentConfirmedSlot={bookedSlot}
       />
     </div>
   );
 }
-

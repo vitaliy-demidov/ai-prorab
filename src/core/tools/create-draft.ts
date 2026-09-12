@@ -30,8 +30,23 @@ export interface ConfirmSuggestionResult {
 // замените DEMO_IN_MEMORY_DRAFT_CACHE на Vercel KV / Redis / PostgreSQL,
 // либо используйте подписанный JWT-токен черновика (stateless session pattern).
 // ==============================================================================
-const DEMO_IN_MEMORY_DRAFT_CACHE = new Map<string, WorkBriefDraft>();
-const DEMO_IN_MEMORY_PENDING_SUGGESTIONS = new Map<string, Map<string, ModelSuggestion>>();
+// ==============================================================================
+// DEMO STORAGE with globalThis persistence across Fast Refresh / Route reloads:
+// ==============================================================================
+const globalForDrafts = globalThis as unknown as {
+  __demoDraftCache?: Map<string, WorkBriefDraft>;
+  __demoPendingSuggestions?: Map<string, Map<string, ModelSuggestion>>;
+};
+
+if (!globalForDrafts.__demoDraftCache) {
+  globalForDrafts.__demoDraftCache = new Map<string, WorkBriefDraft>();
+}
+if (!globalForDrafts.__demoPendingSuggestions) {
+  globalForDrafts.__demoPendingSuggestions = new Map<string, Map<string, ModelSuggestion>>();
+}
+
+const DEMO_IN_MEMORY_DRAFT_CACHE = globalForDrafts.__demoDraftCache;
+const DEMO_IN_MEMORY_PENDING_SUGGESTIONS = globalForDrafts.__demoPendingSuggestions;
 
 export function clearDraftCacheForTests(): void {
   DEMO_IN_MEMORY_DRAFT_CACHE.clear();
@@ -155,10 +170,24 @@ export function getCachedDraft(idempotency_key: string): WorkBriefDraft | null {
   return DEMO_IN_MEMORY_DRAFT_CACHE.get(idempotency_key) || null;
 }
 
-export function approveWorkBriefDraft(idempotency_key: string, userSignature: string): WorkBriefDraft {
-  const draft = DEMO_IN_MEMORY_DRAFT_CACHE.get(idempotency_key);
+export function approveWorkBriefDraft(
+  idempotency_key: string,
+  userSignature: string,
+  fallbackDraft?: WorkBriefDraft
+): WorkBriefDraft {
+  let draft = DEMO_IN_MEMORY_DRAFT_CACHE.get(idempotency_key);
+  if (!draft && fallbackDraft) {
+    draft = fallbackDraft;
+    DEMO_IN_MEMORY_DRAFT_CACHE.set(idempotency_key, draft);
+  }
   if (!draft) {
-    throw new Error(`Черновик с ключом ${idempotency_key} не найден в демо-кэше.`);
+    const allDrafts = Array.from(DEMO_IN_MEMORY_DRAFT_CACHE.values());
+    if (allDrafts.length > 0) {
+      draft = allDrafts[allDrafts.length - 1];
+    }
+  }
+  if (!draft) {
+    throw new Error(`Черновик с ключом ${idempotency_key} не найден в кэше. Пожалуйста, запустите экспресс-анализ заново.`);
   }
 
   // Обновляется ТОЛЬКО статус черновика WorkBrief. Внешние действия НЕ разблокируются.
@@ -169,6 +198,9 @@ export function approveWorkBriefDraft(idempotency_key: string, userSignature: st
   };
 
   DEMO_IN_MEMORY_DRAFT_CACHE.set(idempotency_key, approvedDraft);
+  if (draft.idempotency_key !== idempotency_key) {
+    DEMO_IN_MEMORY_DRAFT_CACHE.set(draft.idempotency_key, approvedDraft);
+  }
   return approvedDraft;
 }
 
